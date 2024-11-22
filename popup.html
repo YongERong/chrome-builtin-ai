@@ -1,0 +1,22 @@
+<link href="popup.css" rel="stylesheet" type="text/css" />
+<script type="module" src="popup.js"></script>
+
+<div class="container">
+  <div>
+    <div class="title">"Click to Speak" or input something</div>
+
+    <div class="bookmarks" id="bookmarks"></div>
+
+    <textarea id="prompt-input" placeholder="&quot;Click to Speak&quot; or type something..."></textarea>
+    <!-- https://developer.chrome.com/docs/extensions/reference/api/tts -->
+
+    <button id="clear-input">Clear input</button>
+    <button id="stt-button">Click to Speak</button>
+    <button id="tts-button">Press to TTS</button>
+
+    <p>Results:</p>
+    <p id="search-results"></p>
+
+    
+  </div>
+</div>
