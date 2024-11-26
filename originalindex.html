@@ -1,0 +1,83 @@
+ <!DOCTYPE html>
+ <html lang="en">
+   <head>
+     <meta charset="utf-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+     <meta name="color-scheme" content="dark light">
+     <link rel="stylesheet" href="style.css">
+     <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+     <script src="index.js" type="module"></script>
+   </head>
+   <body>
+      <div class="top-bar">
+        <div class="icons">
+          <i class="fa fa-phone"></i>
+        </div>
+        <h1 class="text-center">Ask Tabby</h1>
+        <div class="menu">
+          <div class="dots"></div>
+        </div>
+      </div>
+     <div id="error-message"></div>
+     <div id="prompt-area">
+       <form>
+         <button type="submit" id="submit-button"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+         <button type="button" id="reset-button">Reset session</button>
+         <button type="button" id="stt-button">Speech to Text</button>
+         <button type="button" id="tts-button">Narrate</button>
+         <span id="cost"></span>
+         <div class="settings">
+           <label for="session-top-k">Top-k</label>
+           <input
+           id="session-top-k"
+           min="1"
+           type="number"
+         >
+           <label for="session-temperature">Temperature</label>
+           <input
+           id="session-temperature"
+           type="number"
+           step="any"
+           min="0"
+         >
+         </div>
+       </form>
+       <h2>Session stats</h2>
+       <table>
+         <thead>
+           <tr>
+             <th>Temperature</th>
+             <th>Top-k</th>
+             <th>Tokens so far</th>
+             <th>Tokens left</th>
+             <th>Total tokens</th>
+           </tr>
+         </thead>
+         <tbody>
+           <tr>
+             <td id="temperature">&nbsp;</td>
+             <td id="top-k">&nbsp;</td>
+             <td id="tokens-so-far">&nbsp;</td>
+             <td id="tokens-left">&nbsp;</td>
+             <td id="max-tokens">&nbsp;</td>
+           </tr>
+         </tbody>
+       </table>
+       <h2>Conversation</h2>
+       <div id="response-area"></div>
+       <details>
+         <summary>Raw response</summary>
+         <div></div>
+       </details>
+       <button id="copy-link-button">Copy link</button>
+       <small
+       >💡 If there's a problem with the response, select the problematic text
+         with your mouse before clicking the button.</small>
+       <div id="problematic-area">
+         <h2>Problematic:</h2>
+         <pre id="problem"></pre>
+       </div>
+       <div><input id="prompt-input" placeholder="What do you want to know?"></div>
+      </div>
+   </body>
+ </html>
