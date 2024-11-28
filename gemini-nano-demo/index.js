@@ -332,3 +332,18 @@
   /* End of TTS STT */
 })();
 
+
+function getTitle() { return document.body.innerText; }
+
+chrome.tabs.query({}, (tabs) => {
+  tabs.forEach((tab) => {
+    console.log(tab.id)
+    chrome.scripting.executeScript({
+      target : {tabId : tab.id},
+      func : getTitle,
+    }).then(([{result}]) => console.log(result)); // content of each tab is printed to the console
+  }
+  
+    
+  );
+})
