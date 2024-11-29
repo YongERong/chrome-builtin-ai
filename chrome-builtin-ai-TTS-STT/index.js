@@ -38,6 +38,9 @@
   const TRIGGER_WORD_PLACEHOLDER = 'Listening for "Hey Tabby"...';
   const PROMPT_INPUT_PLACEHOLDER = "What do you want to know?";
   const SPEECH_RECOGNITION_ERROR_NO_SPEECH = "no-speech";
+
+  // tabId: tabSummary
+  var tabSummaries = {}
   
 
 //   const SYSTEM_PROMPT = 
@@ -48,9 +51,19 @@
 // \
 // You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
 // You may include your own information if the text is not relevant or you need more information";
-  const IRRELEVANT_ANSWER = `The websites you have opened are not relevant, so here is a Google Search link for your question.`;
-  const SYSTEM_PROMPT = `I will give you a question, followed by a text. Give me an answer based on the text. If the text is not relevant, say "${IRRELEVANT_ANSWER}" and NOTHING ELSE`
-  
+  //   const SYSTEM_PROMPT =
+// `"I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the text does not provide enough information to answer the question, say the following words exactly: 'The websites you have opened are not relevant, so here is a Google Search link for your question.' Do not include a Google Search link.`
+ //say the following words exactly "${IRRELEVANT_ANSWER}". If it is not related, explain why` // Generate a percentage of how confident you are of your answer, and say "IRRELEVANT" if that percentage is lower than 60%.`// If the percentage is less than 60%, say the following WITHOUT providing a google search link: '${IRRELEVANT_ANSWER}'`;//. `
+
+
+  const IRRELEVANT_ANSWER = `Your open websites are all not related, click here to search for it.`;
+
+  // DO NOT USE THE WORD IRRELEVANT. use related
+  // IMPORTANT: Filtering a related passage will be done with the summaries. If it is chosen, means confirm related. If none are related, we will provide the google search link then.
+  // This prompt api will be confident it is related, so if it cannot answer the question it will be due to missing info in the text, not because it is the wrong website.
+  const SYSTEM_PROMPT_FIND_RELEVANT_TAB = `From this list`
+  const SYSTEM_PROMPT = `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`
+
   function generateIrrelevantAnswerWithGoogleSearchLink(prompt) {
     let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(" ", "+")}`
     return `<a href="${searchLink}" target="_blank">${IRRELEVANT_ANSWER}</a>`
@@ -69,7 +82,8 @@
 
   var menuIsOpen = false;
 
-  if (!self.ai || !self.ai.languageModel) {
+  // Update here when using a new API
+  if (!self.ai || !self.ai.languageModel || self.ai.summarizer) {
     let errorMessage = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
     let incomingDiv = await createIncomingMessage();
     updateIncomingMessage(incomingDiv, errorMessage, false, "");
@@ -79,6 +93,29 @@
   // promptArea.style.display = "block";
   // copyLinkButton.style.display = "none";
   // copyHelper.style.display = "none";
+
+  // Expected output from prompt API: confidence percent followed by answer
+  // If confidence below threshold, show irrelevant answer text, else show answer
+  function textRelevanceCheck(response, confidenceThreshold) {
+    percentLoc = response.search("%")
+    if (percentLoc != -1) {
+      return 0, IRRELEVANT_ANSWER
+    } else {
+      let confidence = response.slice(0, percentLoc).trim();
+      let answer = response.slice(percentLoc + 1).trim();
+      if (isNumeric(confidence) && confidence >= confidenceThreshold) {
+        answer = IRRELEVANT_ANSWER
+      }
+
+      return confidence, answer;
+    }
+  }
+
+  function isNumeric(str) {
+    if (typeof str != "string") return false // we only process strings!  
+    return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+           !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+  }
 
   const promptModel = async (highlight = false) => {
     // copyLinkButton.style.display = "none";
@@ -214,14 +251,13 @@ Back to the top `);
     // responseArea.append(p);
     let fullResponse = "";
 
-    //HERER
     await createOutgoingMessage(promptInputValue);
     const incomingDiv = await createIncomingMessage();
     
     try {
       if (!session) {
         await updateSession();
-        updateStats();
+        // updateStats();
       }
       const stream = await session.promptStreaming(prompt);
       var speechPtr = 0;
@@ -412,7 +448,7 @@ Back to the top `);
       systemPrompt: SYSTEM_PROMPT
     });
     resetUI();
-    updateStats();
+    // updateStats();
   };
 
   sessionTemperature.addEventListener("input", async () => {
@@ -433,18 +469,10 @@ Back to the top `);
     await updateSession();
   }
 
-  
-
-  /* TTS STT */
-  var isListening = false;
+    var isListening = false;
   var recognition;
   var triggerWordRecognition;
 
-  // // Text to Speech
-  // document.getElementById("tts-button").addEventListener("click", async () => {
-  //     let value = responseArea.value;
-  //     await chrome.tts.speak(value);
-  // });
 
 
   function startListeningForTriggerWord() {
@@ -553,7 +581,7 @@ Back to the top `);
             } else if (final) {
                 promptInput.value = final;
                 promptInput.scrollLeft = promptInput.scrollWidth;
-                searchWithPromptGiven(final)
+                searchWithPromptGiven()
             }
         };
 
@@ -586,7 +614,7 @@ Back to the top `);
     }
   }
 
-  async function searchWithPromptGiven(prompt) {
+  async function searchWithPromptGiven() {
       stopListening(recognition);
       await promptModel();
 
@@ -701,6 +729,7 @@ Back to the top `);
     }
   }
 
+  // Call when disabling mic button when trigger word setting is active only
   function disableMicButtonCSS() {
     slashMicButton(true);
     if (!sttButtonIcon.classList.contains("disabled")) {
@@ -712,6 +741,7 @@ Back to the top `);
     promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
   }
 
+  // Call when enabling mic button when trigger word setting is deactivated only
   function enableMicButtonCSS() {
     slashMicButton(false);
     sttButtonIcon.classList.remove("disabled");
@@ -719,6 +749,7 @@ Back to the top `);
     promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
   }
 
+  // Update the settings page to local storage
   function updateSettings(settingsObject) {
     chrome.storage.local.set(
       settingsObject,
@@ -728,7 +759,7 @@ Back to the top `);
     );
   }
 
-  // MUST await the settings to be restored before continuing anything
+  // Restore the settings page from local storage
   function restoreTriggerWordCheckboxSetting(key) {
     chrome.storage.local.get(
       key,
@@ -740,6 +771,50 @@ Back to the top `);
 
   // TODO auto resize textarea based on the amount of words spoken
 
-  /* End of TTS STT */
+  // Get each tabs' innerText
+  function getTitle(tabId) {
+    return {
+      tabId: tabId,
+      tabContent: document.body.innerText
+
+    };
+  }
+
+  // TODO check if the tabs changed. If no change no need to reload everything
+  // Get summaries of all open tabs
+  function loadTabSummaries() {
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        console.log(tab.id)
+        chrome.scripting.executeScript({
+          target : {tabId : tab.id},
+          func : () => getTitle(tab.id),
+        }).then(([{tabData}]) => {
+          // TODO Ignore "New Tab"
+          if (false) {
+            console.log("Ignoring new tab")
+            return
+          }
+
+          summary = summariseTabContent(tabData["tabId"], tabData["tabContent"]);
+          // Try summarise data to get key points for each tab.
+          tabSummaries[tab] = summary;
+          console.log(summary)
+        }); // content of each tab is printed to the console
+      });
+    })
+  }
+
+  // Summarise tab content
+  function summariseTabContent(tabContent) {
+    tabContent = preprocessTabContent(tabContent);
+
+  }
+
+  // TODO preprocess the tab summaries
+  function preprocessTabContent(tabContent) {
+    return tabContent;
+  }
+
 })();
 
