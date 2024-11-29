@@ -27,10 +27,13 @@
   const OUTGOING_MESSAGE_CLASS = "outgoing";
   const INCOMING_MESSAGE_CLASS = "incoming";
 
-  var triggerWordSetting = false;
-  triggerWordSetting = await restoreSetting("triggerWordSetting");
-  triggerWordSettingCheckbox.checked = triggerWordSetting;
-  // alert(triggerWordSetting)
+  const TRIGGER_WORD_SETTING_SYNC_VARIABLE = "triggerWordSetting"
+  restoreTriggerWordCheckboxSetting(TRIGGER_WORD_SETTING_SYNC_VARIABLE);
+
+  function getTriggerWordSetting() {
+    return triggerWordSettingCheckbox.checked;
+  }
+
   const TRIGGER_WORD = "hey tabby".toLowerCase();
   const TRIGGER_WORD_PLACEHOLDER = 'Listening for "Hey Tabby"...';
   const PROMPT_INPUT_PLACEHOLDER = "What do you want to know?";
@@ -45,9 +48,8 @@
 // \
 // You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
 // You may include your own information if the text is not relevant or you need more information";
-  const GOOGLE_SEARCH_TEXT_TO_LINK = "Google Search link for your question"
-  const IRRELEVANT_ANSWER = `The websites you have opened are not relevant, so here is a ${GOOGLE_SEARCH_TEXT_TO_LINK}.`;
-  const SYSTEM_PROMPT = `I will give you a question, followed by a text. Give me an answer based on the text. If the text is not relevant, say "${IRRELEVANT_ANSWER}"`
+  const IRRELEVANT_ANSWER = `The websites you have opened are not relevant, so here is a Google Search link for your question.`;
+  const SYSTEM_PROMPT = `I will give you a question, followed by a text. Give me an answer based on the text. If the text is not relevant, say "${IRRELEVANT_ANSWER}" and NOTHING ELSE`
   
   function generateIrrelevantAnswerWithGoogleSearchLink(prompt) {
     let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(" ", "+")}`
@@ -71,7 +73,7 @@
     let errorMessage = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
     let incomingDiv = await createIncomingMessage();
     updateIncomingMessage(incomingDiv, errorMessage, false, "");
-    // return; // COMMENT OUT WHEN TESTING IF BROWSER NOT SUPPORTED.
+    // return; // COMMENT OUT WHEN TESTING IF BROWSER NOT SUPPORTED. TODO comment back in once finalized?
   }
 
   // promptArea.style.display = "block";
@@ -212,6 +214,7 @@ Back to the top `);
     // responseArea.append(p);
     let fullResponse = "";
 
+    //HERER
     await createOutgoingMessage(promptInputValue);
     const incomingDiv = await createIncomingMessage();
     
@@ -308,11 +311,11 @@ Back to the top `);
 
   triggerWordSettingCheckbox.addEventListener('change', (event) => {
     if (event.currentTarget.checked) {
-      updateSettings({triggerWordSetting: true});
+      updateSettings({TRIGGER_WORD_SETTING_SYNC_VARIABLE: true});
       startListeningForTriggerWord();
     } else {
       enableMicButtonCSS();
-      updateSettings({triggerWordSetting: false});
+      updateSettings({TRIGGER_WORD_SETTING_SYNC_VARIABLE: false});
       stopListening(triggerWordRecognition);
     }
   })
@@ -354,7 +357,7 @@ Back to the top `);
 
   });
 
-  if (triggerWordSetting) {
+  if (getTriggerWordSetting()) {
     // If listening for trigger word then just start immediately
     startListeningForTriggerWord();
   } else {
@@ -502,8 +505,8 @@ Back to the top `);
   }
 
   function startListening() {
-      if (!triggerWordSetting) {
-        toggleMicButton(true);
+      if (!getTriggerWordSetting()) {
+        slashMicButton(true);
       }
       promptInput.placeholder = "Listening...";
       promptInput.value = "";
@@ -574,11 +577,11 @@ Back to the top `);
     isListening = false;
 
     // If trigger word setting then start immediately
-    if (triggerWordSetting) {
+    if (getTriggerWordSetting()) {
       promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
     } else {
       // else toggle mic button
-      toggleMicButton(false)
+      slashMicButton(false)
       promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
     }
   }
@@ -588,10 +591,9 @@ Back to the top `);
       await promptModel();
 
       // If trigger word setting, start listening again
-      if (triggerWordSetting) {
+      if (getTriggerWordSetting()) {
         startListeningForTriggerWord()
       }
-      // TODO if settings is set, continuous listening. listen for prompt word. Restart prompt here
   }
 
   // Creates a message div with "..." while waiting for model response. 
@@ -669,7 +671,7 @@ Back to the top `);
   }
 
   // Adds the TTS Button to a message 
-  // TODO Change to update where it updates from stopTTS => startTTS
+  // TODO Change to update where it updates from stopTTS => startTTS chrome.tts.stop();
   async function addTTSButton(messageDiv, text) {
     const newButton = document.createElement("button");
     newButton.classList.add("tts")
@@ -683,7 +685,8 @@ Back to the top `);
     messageDiv.appendChild(newButton);
   }
 
-  function toggleMicButton(toggleOn) {
+  // false to show mic button. true to show slashed mic button
+  function slashMicButton(toggleOn) {
     console.log(sttButtonIcon.classList)
     if (toggleOn) {
       sttButtonIcon.classList.remove("fa-microphone");
@@ -699,7 +702,7 @@ Back to the top `);
   }
 
   function disableMicButtonCSS() {
-    toggleMicButton(true);
+    slashMicButton(true);
     if (!sttButtonIcon.classList.contains("disabled")) {
       sttButtonIcon.classList.add("disabled");
     }
@@ -710,33 +713,29 @@ Back to the top `);
   }
 
   function enableMicButtonCSS() {
+    slashMicButton(false);
     sttButtonIcon.classList.remove("disabled");
     promptInput.classList.remove("disabled");
+    promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
   }
 
   function updateSettings(settingsObject) {
-    chrome.storage.sync.set(
+    chrome.storage.local.set(
       settingsObject,
       () => {
-        alert("Settings Saved.")
+        // alert("Settings Saved.")
       }
     );
   }
 
   // MUST await the settings to be restored before continuing anything
-  async function restoreSetting(key) {
-    return new Promise((resolve, reject) => {
-      try {
-        chrome.storage.local.get(
-          key,
-          (items) => {
-            // alert(items[key])
-            resolve(items[key]);
-          });
-      } catch (ex) {
-        reject(ex);
-      }
-    });
+  function restoreTriggerWordCheckboxSetting(key) {
+    chrome.storage.local.get(
+      key,
+      (items) => {
+        triggerWordSettingCheckbox.checked = items[key];
+        triggerWordSettingCheckbox.dispatchEvent(new Event('change'));
+      });
   };
 
   // TODO auto resize textarea based on the amount of words spoken
