@@ -10,7 +10,7 @@
     "service_worker": "service-worker.js",
     "type": "module"
   },
-  "permissions": ["sidePanel", "storage", "tabs", "tts", "scripting"],
-  "host_permissions": ["*://*/*"]
+  "permissions": ["sidePanel", "storage", "tabs", "tts", "scripting", "activeTab"],
+  "host_permissions": ["https://www.scribbr.com/", "<all_urls>"]
 
 }

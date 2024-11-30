@@ -1,21 +1,21 @@
 (async () => {
-  const costSpan = document.getElementById("cost");
-  // const promptArea = document.getElementById("prompt-area");
-  // const problematicArea = document.getElementById("problematic-area");
   const promptInput = document.getElementById("prompt-input");
-  // const responseArea = document.getElementById("response-area");
-  // const copyLinkButton = document.getElementById("copy-link-button");
   const resetButton = document.getElementById("reset-button");
-  // const copyHelper = document.querySelector("small");
-  // const rawResponse = document.querySelector("details div");
+
+  const titleModelParams = {
+    temperature: 1,
+    topK: 3,
+    systemPrompt: `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say <TABBY NOT FOUND>. Only say the title, without reasoning.`
+  }
+
+  const questionModelParams = {
+    temperature: 0.5,
+    topK: 1,
+    systemPrompt: `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`
+  }
+  
+
   const form = document.querySelector("form");
-  const maxTokensInfo = document.getElementById("max-tokens");
-  const temperatureInfo = document.getElementById("temperature");
-  const tokensLeftInfo = document.getElementById("tokens-left");
-  const tokensSoFarInfo = document.getElementById("tokens-so-far");
-  const topKInfo = document.getElementById("top-k");
-  const sessionTemperature = document.getElementById("session-temperature");
-  const sessionTopK = document.getElementById("session-top-k");
   const chatDiv = document.getElementById("chat-div");
   const sttButton = document.getElementById("stt-button");
   const sttButtonIcon = document.getElementById("stt-button-icon");
@@ -40,59 +40,61 @@
   const SPEECH_RECOGNITION_ERROR_NO_SPEECH = "no-speech";
 
   // tabId: tabSummary
-  var tabSummaries = {}
+  // var tabInfos = {}
   
 
-//   const SYSTEM_PROMPT = 
-// "You will be answering a question based on the text given to you. The format will be as follows: \
-// \
-// \"Question\": [question] \
-// \"Text\": [Text] \
-// \
-// You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
-// You may include your own information if the text is not relevant or you need more information";
-  //   const SYSTEM_PROMPT =
-// `"I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the text does not provide enough information to answer the question, say the following words exactly: 'The websites you have opened are not relevant, so here is a Google Search link for your question.' Do not include a Google Search link.`
- //say the following words exactly "${IRRELEVANT_ANSWER}". If it is not related, explain why` // Generate a percentage of how confident you are of your answer, and say "IRRELEVANT" if that percentage is lower than 60%.`// If the percentage is less than 60%, say the following WITHOUT providing a google search link: '${IRRELEVANT_ANSWER}'`;//. `
+  //   const TITLE_PROMPT = 
+  // "You will be answering a question based on the text given to you. The format will be as follows: \
+  // \
+  // \"Question\": [question] \
+  // \"Text\": [Text] \
+  // \
+  // You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
+  // You may include your own information if the text is not relevant or you need more information";
+    //   const TITLE_PROMPT =
+  // `"I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the text does not provide enough information to answer the question, say the following words exactly: 'The websites you have opened are not relevant, so here is a Google Search link for your question.' Do not include a Google Search link.`
+  //say the following words exactly "${IRRELEVANT_ANSWER}". If it is not related, explain why` // Generate a percentage of how confident you are of your answer, and say "IRRELEVANT" if that percentage is lower than 60%.`// If the percentage is less than 60%, say the following WITHOUT providing a google search link: '${IRRELEVANT_ANSWER}'`;//. `
 
 
   const IRRELEVANT_ANSWER = `Your open websites are all not related, click here to search for it.`;
 
+  // const SYSTEM_PROMPT_FIND_RELEVANT_TAB = `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say "false"`;
+  
+
   // DO NOT USE THE WORD IRRELEVANT. use related
   // IMPORTANT: Filtering a related passage will be done with the summaries. If it is chosen, means confirm related. If none are related, we will provide the google search link then.
   // This prompt api will be confident it is related, so if it cannot answer the question it will be due to missing info in the text, not because it is the wrong website.
-  const SYSTEM_PROMPT_FIND_RELEVANT_TAB = `From this list`
-  const SYSTEM_PROMPT = `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`
+  
 
   function generateIrrelevantAnswerWithGoogleSearchLink(prompt) {
     let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(" ", "+")}`
     return `<a href="${searchLink}" target="_blank">${IRRELEVANT_ANSWER}</a>`
   }
 
-  function generatePrompt(question, websiteContent) {
+  function generateTitlePrompt(question, tabTitles) {
+    // DO NOT ENCLOSE THEM IN DOUBLE QUOTES, the model will output the double quotes which messes it up
+    let tabTitlesString = tabTitles.join("\n");
     return `"Question": ${question}
-"Text": ${websiteContent}"`;
+
+"${tabTitlesString}`;
   }
 
   var isListening = false;
 
   // responseArea.style.display = "none";
 
-  let session = null;
+  let titleModel = null;
+  let questionModel = null;
 
   var menuIsOpen = false;
 
   // Update here when using a new API
-  if (!self.ai || !self.ai.languageModel || self.ai.summarizer) {
+  if (!self.ai || !self.ai.languageModel || !self.ai.summarizer) {
     let errorMessage = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
     let incomingDiv = await createIncomingMessage();
     updateIncomingMessage(incomingDiv, errorMessage, false, "");
     // return; // COMMENT OUT WHEN TESTING IF BROWSER NOT SUPPORTED. TODO comment back in once finalized?
   }
-
-  // promptArea.style.display = "block";
-  // copyLinkButton.style.display = "none";
-  // copyHelper.style.display = "none";
 
   // Expected output from prompt API: confidence percent followed by answer
   // If confidence below threshold, show irrelevant answer text, else show answer
@@ -116,153 +118,72 @@
     return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
            !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
   }
+  
+  // Let model decide which website is relevant
+  // (Prompt 1)
+  const promptTitleModel = async (promptInputValue) => {
+    // Get tab titles and id
+    var tabInfos = await loadTabTitles();
+    var tabTitles = Object.values(tabInfos);
 
-  const promptModel = async (highlight = false) => {
-    // copyLinkButton.style.display = "none";
-    // copyHelper.style.display = "none";
-    // problematicArea.style.display = "none";
-    const promptInputValue = promptInput.value.trim()
-    const prompt = generatePrompt(promptInputValue, `
-Singapore
-LOG IN
- Subscribe
-E-paper
-Toggle navigation
-Motorcyclist dies after accident involving Tower Transit bus on PIE; driver arrested
-
-The accident occurred near the Toa Payoh exit of the Pan Island Expressway at around 10.30am on Nov 27. SCREENGRAB: GOOGLE MAPS
-Sarah Koh
-Updated Nov 27, 2024, 06:42 PM
-FacebookTelegram
-SINGAPORE - A motorcyclist was killed in an accident with a Tower Transit bus on the Pan Island Expressway on Nov 27.
-
-In a Facebook post on the same day, Tower Transit Singapore said it was “deeply saddened” by the accident near the Toa Payoh exit of the PIE at around 10.30am.
-
-The bus driver was arrested, according to the post. Tower Transit said it is assisting with ongoing police investigations.
-
-The Singapore Civil Defence Force said it was alerted at around 10.25am, and added that a person was pronounced dead at the scene by a paramedic.
-
-The bus was plying the Service 966 route with 30 passengers on board at the time of the accident, said Tower Transit, adding that no one else was injured.
-
-“No words can fully express our condolences and apologies to the family and loved ones of the motorcyclist,” said the post.
-
-In response to queries, a Tower Transit spokeswoman said the company is in contact with the family of the motorcyclist, and offering them support.
-
-
-Get a round-up of the top stories to start your day
-Enter your e-mail
- Sign up
-By signing up, I accept SPH Media's Terms & Conditions and Privacy Policy as amended from time to time.
-
-
-Yes, I would also like to receive SPH Media Group's SPH Media Limited, its related corporations and affiliates as well as their agents and authorised service providers. marketing and promotions.
-She added that passengers on board the affected bus were transferred to another one to continue their journey.
-
-In July, it was announced that Minister of State for Transport Murali Pillai would lead a task force to look into the safety of public buses - following a spate of accidents involving the vehicles.
-
-The task force comprises representatives from government agencies, the National Transport Workers’ Union, all four public bus operators and the Singapore Road Safety Council.
-
-It will also engage international experts, regulators and operators to identify suitable practices that the sector can adopt.
-
-The group aims to complete the review by early 2025.
-
-The Straits Times has contacted the police for more information.
-
-Tower Transit Singapore is deeply saddened by a fatal accident involving one of our buses and a motorcyclist along the...
-
-Posted by Tower Transit Singapore on Tuesday, November 26, 2024
-More On This Topic
-Motorcyclist dies after bike skids on SLE
-Man dies after his motorcycle skids in Tampines accident
-Already a subscriber? Log in
-
-Black Friday Cyber Monday Sale
-Stay informed with ST One Digital at $0.25/week for the first 6 months
-
-ST One Digital Plan
-$9.90/month $0.25/week
-No contract
-
-Billed at $0.99/month for the first 6 months, $9.90/month thereafter. T&Cs apply.
-
-Subscribe now
-
-Subscriber-exclusive benefits:
-Access all subscriber-only content on the ST app and straitstimes.com
-
-Easy access at any time via the ST app on one mobile device
-
-myST: Follow up to 30 authors and 30 topics
-
-Join ST's WhatsApp Channel and get the latest news and must-reads.
-
-Buses Tower Transit Accidents - traffic
-FacebookTelegram
-The Straits Times
-Available for
-iPhones and iPads
-Available in
-Google Play
-
- 
-E-paper
-Facebook
-Instagram
-Twitter
-LinkedIn
-Newsletters
-RSS Feed
-Telegram
-Youtube
-TikTok
-Singapore
-Asia
-World
-Opinion
-Life
-Business
-Tech
-Sport
-Videos
-Podcasts
-Multimedia
-About Us
-Terms & Conditions
-Privacy Policy
-Need help? Reach us here.
-Advertise with us
-MDDI (P) 048/10/2024. Published by SPH Media Limited, Co. Regn. No. 202120748H. Copyright © 2024 SPH Media Limited. All rights reserved.
-
-Back to the top `);
-    promptInput.value = "";
-    if (!prompt) return;
-    // responseArea.style.display = "block";
-
-    // TODO Should change this to create speech bubble?? need to confirm the theory
-
-    // const heading = document.createElement("h3");
-    // heading.classList.add("prompt", "speech-bubble");
-    // heading.textContent = prompt;
-    // responseArea.append(heading);
-
-    // const p = document.createElement("p");
-    // p.classList.add("response", "speech-bubble");
-    // p.textContent = "Generating response...";
-    // responseArea.append(p);
-    let fullResponse = "";
-
+    if (!promptInputValue) return;
+    
     await createOutgoingMessage(promptInputValue);
     const incomingDiv = await createIncomingMessage();
     
+    if (!titleModel) {
+      await createTitleModel();
+    }
+
+    promptInput.value = "";
+    
+    let titlePrompt = generateTitlePrompt(promptInputValue, tabTitles);
+    console.log(titlePrompt);
+    const selectedTabTitle = await titleModel.prompt(titlePrompt);
+    console.log("title response: " + selectedTabTitle)
+
+    // TODO: when comparing, check if the shorter text is found in the longer text
+    if (tabTitles.includes(selectedTabTitle)) {
+      // If one of the website is relevant, get the websiteContent from innerText
+      let websiteContent = getRelevantTabContent(selectedTabTitle, tabInfos);
+      alert(selectedTabTitle);
+      // Prompt question model with prompt and website content
+      return promptQuestionModel(promptInputValue, websiteContent, incomingDiv);
+    } else {
+      // If non of the websites are relevant, show irrelevant message
+      return updateIncomingMessageIrrelevantAnswer(incomingDiv, promptInputValue);
+    }
+
+  }
+
+  const promptQuestionModel = async (promptInputValue, websiteContent, incomingDiv) => {
+    const prompt = generateQuestionPrompt(promptInputValue, websiteContent);
+// `"Question": what temperature should the cookies be baked at?
+
+// "Website Titles":
+// Whatsapp Web
+// New Tab
+// Cookie Clicker`
+
+    if (!prompt) return;
+
+    let fullResponse = "";
+
+    
+    
     try {
-      if (!session) {
-        await updateSession();
-        // updateStats();
+      if (!questionModel) {
+        await createQuestionModel();
       }
-      const stream = await session.promptStreaming(prompt);
+      // const titleStream = await titleModel.promptStreaming(prompt); // change from stream to prompt
+
+
+
+
+      const questionStream = await questionModel.promptStreaming(generateQuestionPrompt);
       var speechPtr = 0;
       
-      for await (const chunk of stream) {
+      for await (const chunk of titleStream) {
         fullResponse = chunk.trim();
         updateIncomingMessage(incomingDiv, fullResponse, false, promptInputValue);
 
@@ -278,48 +199,15 @@ Back to the top `);
       chrome.tts.speak(err_msg);
     } finally {
 
-    //   if (highlight) {
-    //     problematicArea.style.display = "block";
-    //     problematicArea.querySelector("#problem").innerText =
-    //       decodeURIComponent(highlight).trim();
-    //   }
-    //   copyLinkButton.style.display = "inline-block";
-    //   copyHelper.style.display = "inline";
-    //   updateStats();
     }
   };
 
-  // const updateStats = () => {
-  //   if (!session) {
-  //     return;
-  //   }
-  //   const { maxTokens, temperature, tokensLeft, tokensSoFar, topK } = session;
-  //   maxTokensInfo.textContent = new Intl.NumberFormat("en-US").format(
-  //     maxTokens,
-  //   );
-  //   (temperatureInfo.textContent = new Intl.NumberFormat("en-US", {
-  //     maximumSignificantDigits: 5,
-  //   }).format(temperature)),
-  //     (tokensLeftInfo.textContent = new Intl.NumberFormat("en-US").format(
-  //       tokensLeft,
-  //     ));
-  //   tokensSoFarInfo.textContent = new Intl.NumberFormat("en-US").format(
-  //     tokensSoFar,
-  //   );
-  //   topKInfo.textContent = new Intl.NumberFormat("en-US").format(topK);
-  // };
-
-  // const params = new URLSearchParams(location.search);
-  // const urlPrompt = params.get("prompt");
-  // const highlight = params.get("highlight");
-  // if (urlPrompt) {
-  //   promptInput.value = decodeURIComponent(urlPrompt).trim();
-  //   await promptModel(highlight);
-  // }
-
+  // Two ways to send prompt: 
+  // (Option 1) User keys in and presses submit form.addEventListener("submit")
+  // (Option 2) searchWithPromptGiven();
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    await promptModel();
+    promptTitleModel(promptInput.value);
   });
 
   promptInput.addEventListener("keydown", (e) => {
@@ -338,11 +226,6 @@ Back to the top `);
     if (!value) {
       return;
     }
-    const cost = await session.countPromptTokens(value);
-    if (!cost) {
-      return;
-    }
-    // costSpan.textContent = `${cost} token${cost === 1 ? '' : 's'}`;
   });
 
   triggerWordSettingCheckbox.addEventListener('change', (event) => {
@@ -375,9 +258,9 @@ Back to the top `);
   resetButton.addEventListener("click", () => {
     promptInput.value = "";
     resetUI();
-    session.destroy();
-    session = null;
-    updateSession();
+    // questionModel.destroy();
+    // questionModel = null;
+    // updateSession();
   });
 
   menuButton.addEventListener("click", () => {
@@ -393,6 +276,7 @@ Back to the top `);
 
   });
 
+  // Main Code
   if (getTriggerWordSetting()) {
     // If listening for trigger word then just start immediately
     startListeningForTriggerWord();
@@ -420,56 +304,35 @@ Back to the top `);
     });
   }
 
-  // copyLinkButton.addEventListener("click", () => {
-  //   const prompt = promptInput.value.trim();
-  //   if (!prompt) return;
-  //   const url = new URL(self.location.href);
-  //   url.searchParams.set("prompt", encodeURIComponent(prompt));
-  //   const selection = getSelection().toString() || "";
-  //   if (selection) {
-  //     url.searchParams.set("highlight", encodeURIComponent(selection));
-  //   } else {
-  //     url.searchParams.delete("highlight");
-  //   }
-  //   navigator.clipboard.writeText(url.toString()).catch((err) => {
-  //     alert("Failed to copy link: ", err);
-  //   });
-  //   const text = copyLinkButton.textContent;
-  //   copyLinkButton.textContent = "Copied";
-  //   setTimeout(() => {
-  //     copyLinkButton.textContent = text;
-  //   }, 3000);
-  // });
-
-  const updateSession = async () => {
-    session = await self.ai.languageModel.create({
-      temperature: Number(sessionTemperature.value),
-      topK: Number(sessionTopK.value),
-      systemPrompt: SYSTEM_PROMPT
+  // const updateSession = async () => {
+  const createTitleModel = async () => {
+    titleModel = await self.ai.languageModel.create({
+      temperature: Number(titleModelParams.temperature),
+      topK: Number(titleModelParams.topK),
+      systemPrompt: titleModelParams.systemPrompt
     });
-    resetUI();
-    // updateStats();
+  }
+    
+
+  const createQuestionModel = async () => {
+    questionModel = await self.ai.languageModel.create({
+      temperature: Number(questionModelParams.temperature),
+      topK: Number(questionModelParams.topK),
+      systemPrompt: questionModelParams.systemPrompt
+    });
   };
 
-  sessionTemperature.addEventListener("input", async () => {
-    await updateSession();
-  });
+  // if (!questionModel) {
+  //   const { defaultTopK, maxTopK, defaultTemperature } =
+  //     await self.ai.languageModel.capabilities();
+  //   console.log(await self.ai.languageModel.capabilities())
+  //   sessionTemperature.value = defaultTemperature;
+  //   sessionTopK.value = defaultTopK;
+  //   sessionTopK.max = maxTopK;
+  //   await updateSession();
+  // }
 
-  sessionTopK.addEventListener("input", async () => {
-    await updateSession();
-  });
-
-  if (!session) {
-    const { defaultTopK, maxTopK, defaultTemperature } =
-      await self.ai.languageModel.capabilities();
-    console.log(await self.ai.languageModel.capabilities())
-    sessionTemperature.value = defaultTemperature;
-    sessionTopK.value = defaultTopK;
-    sessionTopK.max = maxTopK;
-    await updateSession();
-  }
-
-    var isListening = false;
+  var isListening = false;
   var recognition;
   var triggerWordRecognition;
 
@@ -614,14 +477,17 @@ Back to the top `);
     }
   }
 
+  // Two ways to send prompt: 
+  // (Option 1) User keys in and presses submit form.addEventListener("submit")
+  // (Option 2) searchWithPromptGiven();
   async function searchWithPromptGiven() {
-      stopListening(recognition);
-      await promptModel();
+    stopListening(recognition);
+    await promptTitleModel(promptInput.value);
 
-      // If trigger word setting, start listening again
-      if (getTriggerWordSetting()) {
-        startListeningForTriggerWord()
-      }
+    // If trigger word setting, start listening again
+    if (getTriggerWordSetting()) {
+      startListeningForTriggerWord()
+    }
   }
 
   // Creates a message div with "..." while waiting for model response. 
@@ -647,6 +513,11 @@ Back to the top `);
 
     // Don't add TTS button first
     return messageDiv
+  }
+
+  // Updates the incoming message from "..." to the irrelevant response
+  async function updateIncomingMessageIrrelevantAnswer(messageDiv, promptInputValue) {
+    return updateIncomingMessage(messageDiv, IRRELEVANT_ANSWER, true, promptInputValue);
   }
 
   // Updates the incoming message from "..." to the response
@@ -715,7 +586,6 @@ Back to the top `);
 
   // false to show mic button. true to show slashed mic button
   function slashMicButton(toggleOn) {
-    console.log(sttButtonIcon.classList)
     if (toggleOn) {
       sttButtonIcon.classList.remove("fa-microphone");
       if (!sttButtonIcon.classList.contains("fa-microphone-slash")) {
@@ -771,39 +641,122 @@ Back to the top `);
 
   // TODO auto resize textarea based on the amount of words spoken
 
-  // Get each tabs' innerText
-  function getTitle(tabId) {
-    return {
-      tabId: tabId,
-      tabContent: document.body.innerText
+  // // TODO check if the tabs changed. If no change no need to reload everything
+  // // Get summaries of all open tabs
+  // function loadTabInfos(prompt) {
+  //   tabInfos = {};
+  //   alert("TEST")
 
-    };
+  //   chrome.tabs.query({}, (tabs) => {
+  //     tabs.forEach((tab) => {
+  //       console.log(tab.id)
+  //       chrome.scripting.executeScript({
+  //         target : {tabId : tab.id},
+  //         func : () => {
+  //           alert('tse')
+  //           console.log(document.title)
+  //           return getTabInfo(tab)
+  //         },
+  //       }).then(([{tabInfo}]) => {
+  //         // TODO Ignore "New Tab"
+  //         alert(tabInfo)
+  //         console.log(tabInfo)
+  //         // if (tabInfo.tabTitle == "New Tab") {
+  //         //   console.log("Ignoring new tab")
+  //         //   return
+  //         // }
+
+  //         tabInfos[tabInfo.tabId] = tabInfo.tabTitle;
+  //       }); // content of each tab is printed to the console
+  //     });
+
+  //     // relevantTab = getRelevantTab(prompt);
+  //     console.log(tabInfos)
+  //   })
+  // }
+  // loadTabInfos("tset");
+
+  // // Counts tabs that are not New Tab and chrome://
+  // // The foreach will fail so we need to ignore them also
+  // function countValidTabs() {
+    
+  // }
+
+  function getTitle() {
+    console.log("YES")
+    // try {
+    //   return document.title;
+    // } catch (err) {
+    //   console.error(err);
+    //   return "";
+    // }
+    return document.title;
   }
 
-  // TODO check if the tabs changed. If no change no need to reload everything
-  // Get summaries of all open tabs
-  function loadTabSummaries() {
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach((tab) => {
-        console.log(tab.id)
-        chrome.scripting.executeScript({
-          target : {tabId : tab.id},
-          func : () => getTitle(tab.id),
-        }).then(([{tabData}]) => {
-          // TODO Ignore "New Tab"
-          if (false) {
-            console.log("Ignoring new tab")
-            return
-          }
+  // // TODO currently not working for snoozed tabs
+  // async function loadTabTitles() {
+  //   let tabIds = [];
+  //   let tabTitles = [];
+  //   // let tabInfos = {}
+  //   // let numOfTabsLoaded = 0;
 
-          summary = summariseTabContent(tabData["tabId"], tabData["tabContent"]);
-          // Try summarise data to get key points for each tab.
-          tabSummaries[tab] = summary;
-          console.log(summary)
-        }); // content of each tab is printed to the console
+  //   chrome.tabs.query({}, (tabs) => {
+  //     // let numOfValidTabs = countValidTabs(tabs);
+  //     tabs.forEach((tab) => {
+  //       chrome.scripting.executeScript({
+  //         target : {tabId : tab.id},
+  //         func : getTitle,
+  //       }, ([{result}]) => {
+  //         // https://stackoverflow.com/questions/26517988/unchecked-runtime-lasterror-while-running-tabs-executescript/45603880#45603880
+  //         // If new tab or chrome:// will show error. Still count it as a tab.
+  //         // let e = chrome.runtime.lastError;
+  //         // console.log(e);
+  //         // if(e !== undefined){
+  //         //   console.log("Chrome error");
+  //         //   numOfTabsLoaded++;
+  //         //   console.log(tabId, _, e);
+  //         //   return;
+  //         // }
+  //         tabIds.push(tab.id);
+  //         tabTitles.push(result);
+  //       });
+  //     });
+  //   })
+  //   console.log([tabIds, tabTitles])
+  //   return [tabIds, tabTitles];
+  // }
+
+  async function loadTabTitles() {
+    let tabInfos = {};
+
+    // Get tabs
+    const tabs = await new Promise((resolve, reject) => {
+      chrome.tabs.query({}, (tabs) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error('Failed to query tabs'));
+        } else {
+          resolve(tabs);
+        }
       });
-    })
+    });
+
+    console.log("Tabs fetched:", tabs); // Log the fetched tabs to check
+
+    // Create an array of promises for script execution
+    tabs.forEach((tab) => {
+      tabInfos[tab.id] = tab.title;
+    });
+
+    // Return the final tab IDs and titles
+    return tabInfos;
   }
+
+
+
+
+  // // Testing only can delete later
+  // tabInfos = await loadTabTitles();
+  // console.log(tabInfos)
 
   // Summarise tab content
   function summariseTabContent(tabContent) {
@@ -814,6 +767,33 @@ Back to the top `);
   // TODO preprocess the tab summaries
   function preprocessTabContent(tabContent) {
     return tabContent;
+  }
+
+  function generateQuestionPrompt(question, websiteContent) {
+    return `"Question": ${question}
+    "Text": ${websiteContent}"`;
+  }
+
+  function getRelevantTabContent(selectedTabTitle, tabInfos) {
+    // For each key, 
+    // selectedTabID = Object.keys(tabInfos).find(key => tabInfos[key] === selectedTabTitle);
+    let selectedTabID = -1;
+    for (let key in tabInfos) {
+      if (tabInfos[key] === selectedTabTitle) {
+        selectedTabID = key;
+        break;  // Stop once the key is found
+      }
+    }
+
+    if (selectedTabID == -1) {
+      // TODO handle it
+      alert("NOT FOUND.")
+    } else {
+      return chrome.tabs.executeScript(selectedTabID, {code: 'document.body.innerText'}, function(result) {
+        return result;
+      })
+    }
+
   }
 
 })();
