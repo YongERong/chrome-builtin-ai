@@ -789,7 +789,7 @@
       // TODO handle it
       alert("NOT FOUND.")
     } else {
-      return chrome.tabs.executeScript(selectedTabID, {code: 'document.body.innerText'}, function(result) {
+      return chrome.scripting.executeScript(selectedTabID, {code: 'document.body.innerText'}, function(result) {
         return result;
       })
     }
