@@ -1,10 +1,10 @@
-
-Dont have to search so much because its alr in one of your text
-More relevant to your open tabs rather than ambigious
+More relevant to your open tabs rather than searching without context
+Reduces need for extra tabs
+Secure as it is locally processed, works without wifi as long as the webpages are already downloaded(test it out????)
 
 Features
 Click to speak (TTS)
-Setting to listen for trigger word (Say "Hey Tabby" followed by what you want to say)
+Setting to listen for trigger word, aka hands free mode (Say "Hey Tabby" followed by what you want to ask)
 If not found, generates a google search link the user can click to search
 
 Applications

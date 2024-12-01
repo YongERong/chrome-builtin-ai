@@ -95,31 +95,6 @@ ${tabTitlesString}`;
     // return; // COMMENT OUT WHEN TESTING IF BROWSER NOT SUPPORTED. TODO comment back in once finalized?
   }
 
-  // Expected output from prompt API: confidence percent followed by answer
-  // If confidence below threshold, show irrelevant answer text, else show answer
-  function textRelevanceCheck(response, confidenceThreshold) {
-    percentLoc = response.search("%");
-    if (percentLoc != -1) {
-      return 0, IRRELEVANT_ANSWER;
-    } else {
-      let confidence = response.slice(0, percentLoc).trim();
-      let answer = response.slice(percentLoc + 1).trim();
-      if (isNumeric(confidence) && confidence >= confidenceThreshold) {
-        answer = IRRELEVANT_ANSWER;
-      }
-
-      return confidence, answer;
-    }
-  }
-
-  function isNumeric(str) {
-    if (typeof str != "string") return false; // we only process strings!
-    return (
-      !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-      !isNaN(parseFloat(str))
-    ); // ...and ensure strings of whitespace fail
-  }
-
   // Change to tab with tabId
   function focusTab(tabId) {
     chrome.tabs.update(tabId, { active: true });
@@ -185,6 +160,7 @@ ${tabTitlesString}`;
       // Change to that tab
       focusTab(tabId);
       
+      let firstUpdate = true;
       for await (const chunk of questionStream) {
         fullResponse = chunk.trim();
         updateIncomingMessage(
@@ -193,6 +169,11 @@ ${tabTitlesString}`;
           false,
           promptInputValue
         );
+
+        if (firstUpdate) {
+          focusTab(tabId);
+
+        };
 
         chrome.tts.speak(fullResponse.slice(speechPtr), {'enqueue': true});
 
@@ -238,11 +219,9 @@ ${tabTitlesString}`;
 
   triggerWordSettingCheckbox.addEventListener("change", (event) => {
     if (event.currentTarget.checked) {
-      alert("ONCHANGE CHECKED")
       updateSettings({ triggerWordSetting: true });
       startListeningForTriggerWord();
     } else {
-      alert("ONCHANGE UNCHECKED")
       enableMicButtonCSS();
       updateSettings({ triggerWordSetting: false });
       stopListening(triggerWordRecognition);
@@ -250,18 +229,7 @@ ${tabTitlesString}`;
   });
 
   const resetUI = () => {
-    // responseArea.style.display = "none";s
-    // responseArea.innerHTML = "";
-    // rawResponse.innerHTML = "";
-    // problematicArea.style.display = "none";
-    // copyLinkButton.style.display = "none";
-    // copyHelper.style.display = "none";
-    chatDiv.innerHTML = ""; // Remove all the chats
-    // maxTokensInfo.textContent = "";
-    // temperatureInfo.textContent = "";
-    // tokensLeftInfo.textContent = "";
-    // tokensSoFarInfo.textContent = "";
-    // topKInfo.textContent = "";
+    chatDiv.innerHTML = ""; // Remove all the chat
     promptInput.focus();
   };
 
@@ -302,7 +270,7 @@ ${tabTitlesString}`;
           })
           .catch((error) => {
             alert(
-              "Please enable microphone access in your browser settings to use this feature."
+              "Please enable microphone access in your browser settings to use this feature, then restart the extension."
             );
             // Permission denied, inform the user
             console.error("Microphone access denied:", error);
@@ -338,6 +306,17 @@ ${tabTitlesString}`;
   var triggerWordRecognition;
 
   function startListeningForTriggerWord() {
+    // TODO prompt user for microphone access if not given. not sure why cannot.
+    navigator.mediaDevices
+    .getUserMedia({ audio: true })
+    .catch((error) => {
+      alert(
+        "Please enable microphone access in your browser settings to use this feature, then restart the extension."
+      );
+      // Permission denied, inform the user
+      console.error("Microphone access denied:", error);
+    });
+
     disableMicButtonCSS();
     promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
     promptInput.value = "";
@@ -451,7 +430,10 @@ ${tabTitlesString}`;
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
+        if (!event.error == SPEECH_RECOGNITION_ERROR_NO_SPEECH) {
+          stopListening(recognition);
+          console.error("Speech recognition error:", event.error);
+        }
       };
 
       recognition.onend = () => {};
@@ -636,7 +618,6 @@ ${tabTitlesString}`;
   // Update the settings page to local storage
   function updateSettings(settingsObject) {
     chrome.storage.local.set(settingsObject, () => {
-      alert("Settings Updated.");
     });
   }
 
@@ -760,7 +741,6 @@ ${tabTitlesString}`;
 
     if (selectedTabID == -1) {
       // TODO handle it
-      alert("NOT FOUND.");
       return "";
     } else {
 

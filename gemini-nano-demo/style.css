@@ -158,14 +158,19 @@ body {
 .avatar {
   width: 35px;
   height: 35px;
-  background: linear-gradient(to bottom left, #79C7C5 20%, #A1E2D9 100%);
+  /* background: linear-gradient(to bottom left, #79C7C5 20%, #A1E2D9 100%); */
+
   border-radius: 50%;
   position: absolute;
   top: 11px;
   left: 15px;
-  p {
-    color: #F9FBFF;
-    margin: 7px 12px;
+  img {
+    border-radius: 50%;
+    border-style: solid;
+    border-color: #77777790;
+    border-width: 2px;
+    height: 100%;
+    /* margin: 7px 12px; */
   }
 }
 
@@ -173,11 +178,11 @@ body {
   position: absolute;
   top: 22px;
   text-transform: uppercase;
-  color: #77777790;
+  color: #79C7C5;
   font-size: 1.2em;
   letter-spacing: 2px;
   font-weight: 500;
-  left: 30px;
+  left: 65px;
 }
 
 .menu {

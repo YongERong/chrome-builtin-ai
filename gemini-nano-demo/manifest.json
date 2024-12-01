@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ask Tabby - Contextualised Tab Searches",
   "version": "1.0",
-  "description": "Too many tabs? Have a question that you remember you saw the answer in one of your tabs? Don't want to open too many tabs? Use this extension to search for answers in your tabs!",
+  "description": "Too many tabs? Can't remember something you saw in one of your tabs? Don't want to open too many tabs? Use this extension to search for answers in your tabs!",
   "side_panel": {
     "default_path": "index.html"
   },
