@@ -21,15 +21,12 @@
   const menuButton = document.getElementById("menu-button");
   const menuDiv = document.getElementById("menu-div");
   const topBar = document.getElementById("top-bar");
-  const triggerWordSettingCheckbox = document.getElementById(
-    "trigger-word-setting"
-  );
+  const triggerWordSettingCheckbox = document.getElementById("trigger-word-setting");
 
   const OUTGOING_MESSAGE_CLASS = "outgoing";
   const INCOMING_MESSAGE_CLASS = "incoming";
 
-  const TRIGGER_WORD_SETTING_SYNC_VARIABLE = "triggerWordSetting";
-  restoreTriggerWordCheckboxSetting(TRIGGER_WORD_SETTING_SYNC_VARIABLE);
+  restoreTriggerWordCheckboxSetting();
 
   function getTriggerWordSetting() {
     return triggerWordSettingCheckbox.checked;
@@ -80,8 +77,6 @@ ${tabTitlesString}`;
   }
 
   var isListening = false;
-
-  // responseArea.style.display = "none";
 
   let titleModel = null;
   let questionModel = null;
@@ -243,11 +238,13 @@ ${tabTitlesString}`;
 
   triggerWordSettingCheckbox.addEventListener("change", (event) => {
     if (event.currentTarget.checked) {
-      updateSettings({ TRIGGER_WORD_SETTING_SYNC_VARIABLE: true });
+      alert("ONCHANGE CHECKED")
+      updateSettings({ triggerWordSetting: true });
       startListeningForTriggerWord();
     } else {
+      alert("ONCHANGE UNCHECKED")
       enableMicButtonCSS();
-      updateSettings({ TRIGGER_WORD_SETTING_SYNC_VARIABLE: false });
+      updateSettings({ triggerWordSetting: false });
       stopListening(triggerWordRecognition);
     }
   });
@@ -639,13 +636,15 @@ ${tabTitlesString}`;
   // Update the settings page to local storage
   function updateSettings(settingsObject) {
     chrome.storage.local.set(settingsObject, () => {
-      // alert("Settings Saved.")
+      alert("Settings Updated.");
     });
   }
 
   // Restore the settings page from local storage
-  function restoreTriggerWordCheckboxSetting(key) {
-    chrome.storage.local.get(key, (items) => {
+  async function restoreTriggerWordCheckboxSetting() {
+    let key = "triggerWordSetting";
+
+    chrome.storage.local.get(key).then((items) => {
       triggerWordSettingCheckbox.checked = items[key];
       triggerWordSettingCheckbox.dispatchEvent(new Event("change"));
     });
