@@ -1,116 +1,221 @@
 (async () => {
-  const errorMessage = document.getElementById("error-message");
-  const costSpan = document.getElementById("cost");
-  const promptArea = document.getElementById("prompt-area");
-  const problematicArea = document.getElementById("problematic-area");
   const promptInput = document.getElementById("prompt-input");
-  const responseArea = document.getElementById("response-area");
-  const copyLinkButton = document.getElementById("copy-link-button");
   const resetButton = document.getElementById("reset-button");
-  const copyHelper = document.querySelector("small");
-  const rawResponse = document.querySelector("details div");
+
+  const titleModelParams = {
+    temperature: 1,
+    topK: 3,
+    systemPrompt: `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say <TABBY NOT FOUND>. Only say the title, without reasoning.`,
+  };
+
+  const questionModelParams = {
+    temperature: 0.5,
+    topK: 1,
+    systemPrompt: `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`,
+  };
+
   const form = document.querySelector("form");
-  const maxTokensInfo = document.getElementById("max-tokens");
-  const temperatureInfo = document.getElementById("temperature");
-  const tokensLeftInfo = document.getElementById("tokens-left");
-  const tokensSoFarInfo = document.getElementById("tokens-so-far");
-  const topKInfo = document.getElementById("top-k");
-  const sessionTemperature = document.getElementById("session-temperature");
-  const sessionTopK = document.getElementById("session-top-k");
+  const chatDiv = document.getElementById("chat-div");
+  const sttButton = document.getElementById("stt-button");
+  const sttButtonIcon = document.getElementById("stt-button-icon");
+  const menuButton = document.getElementById("menu-button");
+  const menuDiv = document.getElementById("menu-div");
+  const topBar = document.getElementById("top-bar");
+  const triggerWordSettingCheckbox = document.getElementById("trigger-word-setting");
 
-  responseArea.style.display = "none";
+  const OUTGOING_MESSAGE_CLASS = "outgoing";
+  const INCOMING_MESSAGE_CLASS = "incoming";
 
-  let session = null;
+  restoreTriggerWordCheckboxSetting();
 
-  if (!self.ai || !self.ai.languageModel) {
-    errorMessage.style.display = "block";
-    errorMessage.innerHTML = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
-    return;
+  function getTriggerWordSetting() {
+    return triggerWordSettingCheckbox.checked;
   }
 
-  promptArea.style.display = "block";
-  copyLinkButton.style.display = "none";
-  copyHelper.style.display = "none";
+  const TRIGGER_WORD = "hey tabby".toLowerCase();
+  const TRIGGER_WORD_PLACEHOLDER = 'Listening for "Hey Tabby"...';
+  const PROMPT_INPUT_PLACEHOLDER = "What do you want to know?";
+  const SPEECH_RECOGNITION_ERROR_NO_SPEECH = "no-speech";
 
-  const promptModel = async (highlight = false) => {
-    copyLinkButton.style.display = "none";
-    copyHelper.style.display = "none";
-    problematicArea.style.display = "none";
-    const prompt = promptInput.value.trim();
+  // tabId: tabSummary
+  // var tabInfos = {}
+
+  //   const TITLE_PROMPT =
+  // "You will be answering a question based on the text given to you. The format will be as follows: \
+  // \
+  // \"Question\": [question] \
+  // \"Text\": [Text] \
+  // \
+  // You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
+  // You may include your own information if the text is not relevant or you need more information";
+  //   const TITLE_PROMPT =
+  // `"I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the text does not provide enough information to answer the question, say the following words exactly: 'The websites you have opened are not relevant, so here is a Google Search link for your question.' Do not include a Google Search link.`
+  //say the following words exactly "${IRRELEVANT_ANSWER}". If it is not related, explain why` // Generate a percentage of how confident you are of your answer, and say "IRRELEVANT" if that percentage is lower than 60%.`// If the percentage is less than 60%, say the following WITHOUT providing a google search link: '${IRRELEVANT_ANSWER}'`;//. `
+
+  const IRRELEVANT_ANSWER = `Your open websites are all not related, click here to search for it.`;
+
+  // const SYSTEM_PROMPT_FIND_RELEVANT_TAB = `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say "false"`;
+
+  // DO NOT USE THE WORD IRRELEVANT. use related
+  // IMPORTANT: Filtering a related passage will be done with the summaries. If it is chosen, means confirm related. If none are related, we will provide the google search link then.
+  // This prompt api will be confident it is related, so if it cannot answer the question it will be due to missing info in the text, not because it is the wrong website.
+
+  function generateIrrelevantAnswerWithGoogleSearchLink(prompt) {
+    let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(
+      " ",
+      "+"
+    )}`;
+    return `<a href="${searchLink}" target="_blank">${IRRELEVANT_ANSWER}</a>`;
+  }
+
+  function generateTitlePrompt(question, tabTitles) {
+    // DO NOT ENCLOSE THEM IN DOUBLE QUOTES, the model will output the double quotes which messes it up
+    let tabTitlesString = tabTitles.join("\n");
+    return `"Question": ${question}
+
+${tabTitlesString}`;
+  }
+
+  var isListening = false;
+
+  let titleModel = null;
+  let questionModel = null;
+
+  var menuIsOpen = false;
+
+  let startingMessageDiv = await createIncomingMessage();
+  updateIncomingMessage(startingMessageDiv, "Hey there this is Tabby, ask me any question you would like to be answered by your tabs.", false, "");
+
+  // Update here when using a new API
+  //if (!self.ai || !self.ai.languageModel || !self.ai.summarizer) {
+  if (!self.ai || !self.ai.languageModel) {
+    let errorMessage = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
+    let incomingDiv = await createIncomingMessage();
+    updateIncomingMessage(incomingDiv, errorMessage, false, "");
+    // return; // COMMENT OUT WHEN TESTING IF BROWSER NOT SUPPORTED. TODO comment back in once finalized?
+  }
+
+  // Expected output from prompt API: confidence percent followed by answer
+  // If confidence below threshold, show irrelevant answer text, else show answer
+  function textRelevanceCheck(response, confidenceThreshold) {
+    percentLoc = response.search("%");
+    if (percentLoc != -1) {
+      return 0, IRRELEVANT_ANSWER;
+    } else {
+      let confidence = response.slice(0, percentLoc).trim();
+      let answer = response.slice(percentLoc + 1).trim();
+      if (isNumeric(confidence) && confidence >= confidenceThreshold) {
+        answer = IRRELEVANT_ANSWER;
+      }
+
+      return confidence, answer;
+    }
+  }
+
+  function isNumeric(str) {
+    if (typeof str != "string") return false; // we only process strings!
+    return (
+      !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+      !isNaN(parseFloat(str))
+    ); // ...and ensure strings of whitespace fail
+  }
+
+  // Change to tab with tabId
+  function focusTab(tabId) {
+    chrome.tabs.update(tabId, { active: true });
+  }
+  
+  // Let model decide which website is relevant
+  // (Prompt 1)
+  const promptTitleModel = async (promptInputValue) => {
+    // Get tab titles and id
+    var tabInfos = await loadTabTitles();
+    var tabTitles = Object.values(tabInfos);
+
+    if (!promptInputValue) return;
+    
+    await createOutgoingMessage(promptInputValue);
+    const incomingDiv = await createIncomingMessage();
+    
+    promptInput.value = "";
+
+    if (!titleModel) {
+      await createTitleModel();
+    }
+
+    
+    let titlePrompt = generateTitlePrompt(promptInputValue, tabTitles);
+    const selectedTabTitle = await titleModel.prompt(titlePrompt);
+
+    // TODO: when comparing, check if the shorter text is found in the longer text
+    if (tabTitles.filter((tabTitle) => compareTwoTexts(tabTitle, selectedTabTitle)).length > 0) {
+      // If one of the website is relevant, get the websiteContent from innerText
+      let [websiteContent, tabId] = await getRelevantTabContent(selectedTabTitle, tabInfos);
+      // Prompt question model with prompt and website content
+      return promptQuestionModel(promptInputValue, websiteContent, incomingDiv, tabId);
+    } else {
+      // If non of the websites are relevant, show irrelevant message
+      return updateIncomingMessageIrrelevantAnswer(
+        incomingDiv,
+        promptInputValue
+      );
+    }
+  };
+
+  const promptQuestionModel = async (
+  	promptInputValue,
+  	websiteContent,
+  	incomingDiv,
+  	tabId
+  ) => {
+    const prompt = generateQuestionPrompt(promptInputValue, websiteContent);
+
     if (!prompt) return;
-    responseArea.style.display = "block";
-    const heading = document.createElement("h3");
-    heading.classList.add("prompt", "speech-bubble");
-    heading.textContent = prompt;
-    responseArea.append(heading);
-    const p = document.createElement("p");
-    p.classList.add("response", "speech-bubble");
-    p.textContent = "Generating response...";
-    responseArea.append(p);
+
     let fullResponse = "";
 
     try {
-      if (!session) {
-        await updateSession();
-        updateStats();
+      if (!questionModel) {
+        await createQuestionModel();
       }
-      const stream = await session.promptStreaming(prompt);
+
+      const questionStream = await questionModel.promptStreaming(prompt);
       var speechPtr = 0;
 
-      for await (const chunk of stream) {
+      // Change to that tab
+      focusTab(tabId);
+      
+      for await (const chunk of questionStream) {
         fullResponse = chunk.trim();
-        p.innerHTML = fullResponse;
-        rawResponse.innerText = fullResponse;
+        updateIncomingMessage(
+          incomingDiv,
+          fullResponse,
+          false,
+          promptInputValue
+        );
 
         chrome.tts.speak(fullResponse.slice(speechPtr), {'enqueue': true});
-        // console.log('"' + fullResponse.slice(speechPtr) + '"');
+
         speechPtr = fullResponse.length;
       }
+
+      updateIncomingMessage(incomingDiv, fullResponse, true, promptInputValue);
     } catch (error) {
-      p.textContent = `Error: ${error.message}`;
+      console.error(error)
+      let err_msg = `Error: ${error.message}`;
+      updateIncomingMessage(incomingDiv, err_msg, true, promptInputValue);
+      chrome.tts.speak(err_msg);
     } finally {
-      if (highlight) {
-        problematicArea.style.display = "block";
-        problematicArea.querySelector("#problem").innerText =
-          decodeURIComponent(highlight).trim();
-      }
-      copyLinkButton.style.display = "inline-block";
-      copyHelper.style.display = "inline";
-      updateStats();
+
     }
   };
 
-  const updateStats = () => {
-    if (!session) {
-      return;
-    }
-    const { maxTokens, temperature, tokensLeft, tokensSoFar, topK } = session;
-    maxTokensInfo.textContent = new Intl.NumberFormat("en-US").format(
-      maxTokens,
-    );
-    (temperatureInfo.textContent = new Intl.NumberFormat("en-US", {
-      maximumSignificantDigits: 5,
-    }).format(temperature)),
-      (tokensLeftInfo.textContent = new Intl.NumberFormat("en-US").format(
-        tokensLeft,
-      ));
-    tokensSoFarInfo.textContent = new Intl.NumberFormat("en-US").format(
-      tokensSoFar,
-    );
-    topKInfo.textContent = new Intl.NumberFormat("en-US").format(topK);
-  };
-
-  const params = new URLSearchParams(location.search);
-  const urlPrompt = params.get("prompt");
-  const highlight = params.get("highlight");
-  if (urlPrompt) {
-    promptInput.value = decodeURIComponent(urlPrompt).trim();
-    await promptModel(highlight);
-  }
-
+  // Two ways to send prompt:
+  // (Option 1) User keys in and presses submit form.addEventListener("submit")
+  // (Option 2) searchWithPromptGiven();
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    await promptModel();
+    promptTitleModel(promptInput.value);
   });
 
   promptInput.addEventListener("keydown", (e) => {
@@ -129,221 +234,551 @@
     if (!value) {
       return;
     }
-    const cost = await session.countPromptTokens(value);
-    if (!cost) {
-      return;
+  });
+
+  triggerWordSettingCheckbox.addEventListener("change", (event) => {
+    if (event.currentTarget.checked) {
+      alert("ONCHANGE CHECKED")
+      updateSettings({ triggerWordSetting: true });
+      startListeningForTriggerWord();
+    } else {
+      alert("ONCHANGE UNCHECKED")
+      enableMicButtonCSS();
+      updateSettings({ triggerWordSetting: false });
+      stopListening(triggerWordRecognition);
     }
-    costSpan.textContent = `${cost} token${cost === 1 ? '' : 's'}`;
   });
 
   const resetUI = () => {
-    responseArea.style.display = "none";
-    responseArea.innerHTML = "";
-    rawResponse.innerHTML = "";
-    problematicArea.style.display = "none";
-    copyLinkButton.style.display = "none";
-    copyHelper.style.display = "none";
-    maxTokensInfo.textContent = "";
-    temperatureInfo.textContent = "";
-    tokensLeftInfo.textContent = "";
-    tokensSoFarInfo.textContent = "";
-    topKInfo.textContent = "";
+    // responseArea.style.display = "none";s
+    // responseArea.innerHTML = "";
+    // rawResponse.innerHTML = "";
+    // problematicArea.style.display = "none";
+    // copyLinkButton.style.display = "none";
+    // copyHelper.style.display = "none";
+    chatDiv.innerHTML = ""; // Remove all the chats
+    // maxTokensInfo.textContent = "";
+    // temperatureInfo.textContent = "";
+    // tokensLeftInfo.textContent = "";
+    // tokensSoFarInfo.textContent = "";
+    // topKInfo.textContent = "";
     promptInput.focus();
   };
 
   resetButton.addEventListener("click", () => {
     promptInput.value = "";
     resetUI();
-    session.destroy();
-    session = null;
-    updateSession();
+    // questionModel.destroy();
+    // questionModel = null;
+    // updateSession();
   });
 
-  copyLinkButton.addEventListener("click", () => {
-    const prompt = promptInput.value.trim();
-    if (!prompt) return;
-    const url = new URL(self.location.href);
-    url.searchParams.set("prompt", encodeURIComponent(prompt));
-    const selection = getSelection().toString() || "";
-    if (selection) {
-      url.searchParams.set("highlight", encodeURIComponent(selection));
+  menuButton.addEventListener("click", () => {
+    if (menuIsOpen) {
+      // If menu is open alr then hide everything
+      menuDiv.style.display = "none";
+      menuIsOpen = false;
     } else {
-      url.searchParams.delete("highlight");
+      // if not open then show everything
+      menuDiv.style.display = "inline-block";
+      menuIsOpen = true;
     }
-    navigator.clipboard.writeText(url.toString()).catch((err) => {
-      alert("Failed to copy link: ", err);
+  });
+
+  // Main Code
+  if (getTriggerWordSetting()) {
+    // If listening for trigger word then just start immediately
+    startListeningForTriggerWord();
+  } else {
+    // If not listening for trigger word, then click to speak
+    sttButton.addEventListener("click", async () => {
+      if (!isListening) {
+        // TODO prompt user for microphone access if not given. not sure why cannot.
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then((stream) => {
+            // Microphone permission granted, proceed with recognition
+            startListening();
+          })
+          .catch((error) => {
+            alert(
+              "Please enable microphone access in your browser settings to use this feature."
+            );
+            // Permission denied, inform the user
+            console.error("Microphone access denied:", error);
+          });
+      } else {
+        // End STT
+        // Stop the speech recognition
+        stopListening(recognition);
+        console.log("recongtion.stop");
+      }
     });
-    const text = copyLinkButton.textContent;
-    copyLinkButton.textContent = "Copied";
-    setTimeout(() => {
-      copyLinkButton.textContent = text;
-    }, 3000);
-  });
-
-  const updateSession = async () => {
-    session = await self.ai.languageModel.create({
-      temperature: Number(sessionTemperature.value),
-      topK: Number(sessionTopK.value),
-    });
-    resetUI();
-    updateStats();
-  };
-
-  sessionTemperature.addEventListener("input", async () => {
-    await updateSession();
-  });
-
-  sessionTopK.addEventListener("input", async () => {
-    await updateSession();
-  });
-
-  if (!session) {
-    const { defaultTopK, maxTopK, defaultTemperature } =
-      await self.ai.languageModel.capabilities();
-    sessionTemperature.value = defaultTemperature;
-    sessionTopK.value = defaultTopK;
-    sessionTopK.max = maxTopK;
-    await updateSession();
   }
 
-  
+  // const updateSession = async () => {
+  const createTitleModel = async () => {
+    titleModel = await self.ai.languageModel.create({
+      temperature: Number(titleModelParams.temperature),
+      topK: Number(titleModelParams.topK),
+      systemPrompt: titleModelParams.systemPrompt,
+    });
+  };
 
-  /* TTS STT */
+  const createQuestionModel = async () => {
+    questionModel = await self.ai.languageModel.create({
+      temperature: Number(questionModelParams.temperature),
+      topK: Number(questionModelParams.topK),
+      systemPrompt: questionModelParams.systemPrompt,
+    });
+  };
+
   var isListening = false;
   var recognition;
+  var triggerWordRecognition;
 
-  // Text to Speech
-  document.getElementById("tts-button").addEventListener("click", async () => {
-      let value = document.getElementById("response-area").value;
-      await chrome.tts.speak(value);
-  });
+  function startListeningForTriggerWord() {
+    disableMicButtonCSS();
+    promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
+    promptInput.value = "";
 
-  // Speech to Text
-  document.getElementById("stt-button").addEventListener("click", async () => {
-      isListening = !isListening;
+    let triggerWordSpoken = false;
 
+    if (!triggerWordRecognition) {
+      triggerWordRecognition = new (window.SpeechRecognition ||
+        window.webkitSpeechRecognition)();
+      triggerWordRecognition.continuous = true;
+      triggerWordRecognition.interimResults = false;
+      triggerWordRecognition.lang = "en-US"; // Set the language (optional)
+
+      // Stop if already listening
       if (isListening) {
-          // TODO prompt user for microphone access if not given. not sure why cannot.
-          navigator.mediaDevices.getUserMedia({ audio: true })
-              .then((stream) => {
-                  // Microphone permission granted, proceed with recognition
-                  startListening();
-              })
-              .catch((error) => {
-                  alert("Please enable microphone access in your browser settings to use this feature.");
-                  // Permission denied, inform the user
-                  console.error("Microphone access denied:", error);
-              });
-      } else {
-          // End STT
-          // Stop the speech recognition
-          stopListening();
-          console.log("recongtion.stop");
+        stopListening(triggerWordRecognition);
       }
-  });
 
-  // Clear button
-  document.getElementById("reset-button").addEventListener("click", () => {
-      document.getElementById("prompt-input").value = "";
-  });
+      triggerWordRecognition.onresult = (e) => {
+        const error =
+          e.results === undefined || typeof e.results === "undefined";
+        if (error) {
+          triggerWordRecognition.onend = null;
+          triggerWordRecognition.stop();
+          console.log(error.code);
+          console.error(error);
+          return;
+        }
 
+        let final = e.results[e.results.length - 1][0].transcript; // Get last recorded sentence
+        console.log(final);
+        triggerWordSpoken = final.toLowerCase().includes(TRIGGER_WORD);
+
+        if (triggerWordSpoken) {
+          stopListening(triggerWordRecognition);
+          startListening();
+        }
+      };
+
+      triggerWordRecognition.onerror = (event) => {
+        if (!event.error == SPEECH_RECOGNITION_ERROR_NO_SPEECH) {
+          stopListening(triggerWordRecognition);
+          console.error("Speech recognition error:", event.error);
+        }
+      };
+
+      triggerWordRecognition.onend = () => {
+        // Automatically restart if listening mode is still active
+        if (isListening && !triggerWordSpoken) {
+          triggerWordRecognition.start();
+        }
+      };
+    }
+
+    triggerWordRecognition.start();
+    isListening = true;
+  }
 
   function startListening() {
-      document.getElementById("stt-button").innerHTML = "Click to Stop Speaking";
-      document.getElementById("prompt-input").placeholder = "Listening...";
-      document.getElementById("prompt-input").value = "";
+    if (!getTriggerWordSetting()) {
+      slashMicButton(true);
+    }
+    promptInput.placeholder = "Listening...";
+    promptInput.value = "";
 
-      document.getElementById("response-area").innerHTML = "Listening...";
+    // responseArea.innerHTML = "Listening...";
 
-      if (!recognition) {
-      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    if (!recognition) {
+      recognition = new (window.SpeechRecognition ||
+      window.webkitSpeechRecognition)();
       recognition.continuous = true;
-      recognition.interimResults = true;  // Allows you to get partial results
-      recognition.lang = 'en-US';  // Set the language (optional)
+      recognition.interimResults = true; // Allows you to get partial results
+      recognition.lang = "en-US"; // Set the language (optional)
 
+      // Stop if already listening
       if (isListening) {
-          stopListening();
+        stopListening(recognition);
       }
 
       recognition.onresult = (e) => {
-          let interim = "";
-          let final = "";
+        let interim = "";
+        let final = "";
 
-          const error = e.results === undefined || (typeof e.results) === "undefined";
-          if (error) {
-              recognition.onend = null;
-              recognition.stop();
-              console.log(error.code)
-              console.error(error);
-              return;
-          }
+        const error =
+          e.results === undefined || typeof e.results === "undefined";
+        if (error) {
+          recognition.onend = null;
+          // recognition.stop();
+          stopListening(recognition);
+          console.log(error.code);
+          console.error(error);
+          return;
+        }
 
-          for (let i = e.resultIndex; i < e.results.length; ++i) {
-              if (e.results[i].isFinal) {
-                  final += e.results[i][0].transcript;
-              } else {
-                  interim += e.results[i][0].transcript;
-              }
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            final += e.results[i][0].transcript;
+          } else {
+            interim += e.results[i][0].transcript;
           }
+        }
 
-          if (interim) {
-              document.getElementById("prompt-input").value = interim;
-          } else if (final) {
-              document.getElementById("prompt-input").value = final;
-              searchWithPromptGiven(final)
-          }
+        if (interim) {
+          promptInput.value = interim;
+          promptInput.scrollLeft = promptInput.scrollWidth;
+        } else if (final) {
+          promptInput.value = final;
+          promptInput.scrollLeft = promptInput.scrollWidth;
+          searchWithPromptGiven();
+        }
       };
 
       recognition.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
+        console.error("Speech recognition error:", event.error);
       };
 
-      recognition.onend = () => {
-          // // Automatically restart if listening mode is still active
-          // if (isListening) recognition.start();
-      };
+      recognition.onend = () => {};
+    }
+
+    recognition.start();
+    isListening = true;
+  }
+
+  function stopListening(recognition) {
+    if (recognition) {
+      recognition.stop();
+    }
+    isListening = false;
+
+    // If trigger word setting then start immediately
+    if (getTriggerWordSetting()) {
+      promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
+    } else {
+      // else toggle mic button
+      slashMicButton(false);
+      promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
+    }
+  }
+
+  // Two ways to send prompt:
+  // (Option 1) User keys in and presses submit form.addEventListener("submit")
+  // (Option 2) searchWithPromptGiven();
+  async function searchWithPromptGiven() {
+    stopListening(recognition);
+    await promptTitleModel(promptInput.value);
+
+    // If trigger word setting, start listening again
+    if (getTriggerWordSetting()) {
+      startListeningForTriggerWord();
+    }
+  }
+
+  // Creates a message div with "..." while waiting for model response.
+  // Once model response is out, will replace the "..." with the response using "updateIncomingMessage"
+  async function createIncomingMessage() {
+    // Make div for the message
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add(INCOMING_MESSAGE_CLASS, "typing");
+    // Create bubble div to be a child of message div
+    const bubbleDiv = document.createElement("div");
+    bubbleDiv.classList.add("bubble");
+    // Make the "..." div, add it for the message
+    ["one", "two", "three"].forEach((num) => {
+      let e = document.createElement("div");
+      e.classList.add("ellipsis", num);
+      bubbleDiv.appendChild(e);
+    });
+    messageDiv.appendChild(bubbleDiv);
+
+    // Show message
+    chatDiv.append(messageDiv);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+
+    // Don't add TTS button first
+    return messageDiv;
+  }
+
+  // Updates the incoming message from "..." to the irrelevant response
+  async function updateIncomingMessageIrrelevantAnswer(
+    messageDiv,
+    promptInputValue
+  ) {
+    return updateIncomingMessage(
+      messageDiv,
+      IRRELEVANT_ANSWER,
+      true,
+      promptInputValue
+    );
+  }
+
+  // Updates the incoming message from "..." to the response
+  async function updateIncomingMessage(
+    messageDiv,
+    text,
+    isFinal,
+    promptInputValue
+  ) {
+    let textToShow = text;
+    let textToTTS = text;
+    // If irrelevant, give google search link
+    // TODO: If the answer is close enough to IRRELEVANT_ANSWER, also accept
+    //       https://gist.github.com/andrei-m/982927
+    if (text == IRRELEVANT_ANSWER) {
+      textToShow =
+        generateIrrelevantAnswerWithGoogleSearchLink(promptInputValue);
+    }
+
+    // Remove "..." to show model is done loading
+    // IMPORTANT to use innerHTML NOT innerText because the google search link is using <a>
+    messageDiv.firstChild.innerHTML = textToShow;
+    messageDiv.classList.remove("typing");
+
+    // Text to speech is to be done OUTSIDE, because need to enqueue
+    // chrome.tts.speak(text);
+
+    if (isFinal) {
+      // Add TTS button
+      addTTSButton(messageDiv, textToTTS);
+    }
+
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+    return messageDiv;
+  }
+
+  // Creates outgoing message
+  async function createOutgoingMessage(text) {
+    // Make div for the message
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add(OUTGOING_MESSAGE_CLASS);
+    // Create bubble div to be a child of message div
+    const bubbleDiv = document.createElement("div");
+    bubbleDiv.classList.add("bubble");
+    // Add text for message
+    bubbleDiv.innerText = text;
+    messageDiv.appendChild(bubbleDiv);
+
+    // Adds tts button and shows it
+    addTTSButton(messageDiv, text);
+
+    // Show message
+    chatDiv.append(messageDiv);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+    return messageDiv;
+  }
+
+  // Adds the TTS Button to a message
+  // TODO Change to update where it updates from stopTTS => startTTS chrome.tts.stop();
+  async function addTTSButton(messageDiv, text) {
+    const newButton = document.createElement("button");
+    newButton.classList.add("tts");
+    const speakerIcon = document.createElement("icon");
+    speakerIcon.classList.add("fa", "fa-volume-up");
+    newButton.appendChild(speakerIcon);
+    newButton.addEventListener("click", function (e) {
+      chrome.tts.speak(text);
+    });
+    // Combine everything
+    messageDiv.appendChild(newButton);
+  }
+
+  // false to show mic button. true to show slashed mic button
+  function slashMicButton(toggleOn) {
+    if (toggleOn) {
+      sttButtonIcon.classList.remove("fa-microphone");
+      if (!sttButtonIcon.classList.contains("fa-microphone-slash")) {
+        sttButtonIcon.classList.add("fa-microphone-slash");
       }
-
-      recognition.start();
-      isListening = true;
-  }
-
-  function stopListening() {
-      if (recognition) {
-          recognition.stop();
+    } else {
+      sttButtonIcon.classList.remove("fa-microphone-slash");
+      if (!sttButtonIcon.classList.contains("fa-microphone")) {
+        sttButtonIcon.classList.add("fa-microphone");
       }
-      isListening = false;
-
-      document.getElementById("stt-button").innerHTML = "Click to Speak";
-      document.getElementById("prompt-input").placeholder = "\"Click to Speak\" or type something...";
+    }
   }
 
-  async function searchWithPromptGiven(prompt) {
-      stopListening();
-      // document.getElementById("response-area").innerHTML = prompt;
-      // chrome.tts.speak(prompt);
-      await promptModel();
-
-      // TODO if settings is set, continuous listening. listen for prompt word. Restart prompt here
+  // Call when disabling mic button when trigger word setting is active only
+  function disableMicButtonCSS() {
+    slashMicButton(true);
+    if (!sttButtonIcon.classList.contains("disabled")) {
+      sttButtonIcon.classList.add("disabled");
+    }
+    if (!promptInput.classList.contains("disabled")) {
+      promptInput.classList.add("disabled");
+    }
+    promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
   }
+
+  // Call when enabling mic button when trigger word setting is deactivated only
+  function enableMicButtonCSS() {
+    slashMicButton(false);
+    sttButtonIcon.classList.remove("disabled");
+    promptInput.classList.remove("disabled");
+    promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
+  }
+
+  // Update the settings page to local storage
+  function updateSettings(settingsObject) {
+    chrome.storage.local.set(settingsObject, () => {
+      alert("Settings Updated.");
+    });
+  }
+
+  // Restore the settings page from local storage
+  async function restoreTriggerWordCheckboxSetting() {
+    let key = "triggerWordSetting";
+
+    chrome.storage.local.get(key).then((items) => {
+      triggerWordSettingCheckbox.checked = items[key];
+      triggerWordSettingCheckbox.dispatchEvent(new Event("change"));
+    });
+  };
 
   // TODO auto resize textarea based on the amount of words spoken
 
-  /* End of TTS STT */
-})();
 
+  function getDocumentInnerText() {
+    // return document.body.innerText;
 
-function getTitle() { return document.body.innerText; }
+    // Remove unwanted elements before extracting text
+    const unwantedSelectors = ['.advertisement', '.footer', '.sidebar', '#comments']; // Specify unwanted classes or ids
+    unwantedSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => element.remove()); // Remove each unwanted element
+    });
 
-chrome.tabs.query({}, (tabs) => {
-  tabs.forEach((tab) => {
-    console.log(tab.id)
-    chrome.scripting.executeScript({
-      target : {tabId : tab.id},
-      func : getTitle,
-    }).then(([{result}]) => console.log(result)); // content of each tab is printed to the console
+    // Now, get the cleaned inner text
+    const usefulText = document.body.innerText;
+
+    return usefulText;
   }
-  
-    
-  );
-})
+
+  // TODO currently not working for snoozed tabs
+
+  async function loadTabTitles() {
+    let tabInfos = {};
+
+    // Get tabs
+    const tabs = await new Promise((resolve, reject) => {
+      chrome.tabs.query({}, (tabs) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error("Failed to query tabs"));
+        } else {
+          resolve(tabs);
+        }
+      });
+    });
+
+    console.log("Tabs fetched:", tabs); // Log the fetched tabs to check
+
+    // Create an array of promises for script execution
+    tabs.forEach((tab) => {
+      tabInfos[tab.id] = tab.title;
+    });
+
+    // Return the final tab IDs and titles
+    return tabInfos;
+  }
+
+
+  function generateQuestionPrompt(question, websiteContent) {
+    return `"Question": ${question}
+    "Text": ${websiteContent}`;
+  }
+
+  // Check if texts are similar, no need exact match
+  function compareTwoTexts(txt1, txt2, similarityThreshold=0.75) {
+    txt1 = txt1.trim().toLowerCase();
+    txt2 = txt2.trim().toLowerCase();
+
+    if (txt1 === txt2) return true;
+
+    let shorter = txt1;
+    let longer = txt2;
+
+    if (shorter.length > longer.length) {
+      shorter = txt2;
+      longer = txt1;
+    }
+
+    if (longer.includes(shorter)) return true;
+
+    return levenshteinDistanceSimilarity(txt1, txt2) >= similarityThreshold;
+  }
+
+  function levenshteinDistanceSimilarity(a, b) {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 1; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        const indicator = a[j - 1] === b[i - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1, // deletion
+          matrix[i][j - 1] + 1, // insertion
+          matrix[i - 1][j - 1] + indicator // substitution
+        );
+      }
+    }
+
+    let similarity = 1 - (matrix[b.length][a.length] / Math.max(a.length, b.length));
+    return similarity;
+  }
+
+  // Get document.body.innerText of selected tab
+  async function getRelevantTabContent(selectedTabTitle, tabInfos) {
+    // For each key,
+    // selectedTabID = Object.keys(tabInfos).find(key => tabInfos[key] === selectedTabTitle);
+    let selectedTabID = -1;
+    for (let key in tabInfos) {
+      key = parseInt(key);
+      if (compareTwoTexts(tabInfos[key], selectedTabTitle)) {
+        selectedTabID = key;
+        break; // Stop once the key is found
+      }
+    }
+
+    if (selectedTabID == -1) {
+      // TODO handle it
+      alert("NOT FOUND.");
+      return "";
+    } else {
+
+      return new Promise((resolve, reject) => {
+        chrome.scripting.executeScript(
+          {
+            target: { tabId: selectedTabID },
+            func: getDocumentInnerText,
+          },
+          ([{ result }]) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError); // Handle errors if any
+            } else {
+              resolve([result, selectedTabID]); // Resolve the promise with the result
+            }
+          }
+        );
+      });
+    }
+  }
+})();
