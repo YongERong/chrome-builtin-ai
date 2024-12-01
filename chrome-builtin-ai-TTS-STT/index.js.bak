@@ -703,47 +703,8 @@ ${tabTitlesString}`;
     "Text": ${websiteContent}`;
   }
 
-  // Check if texts are similar, no need exact match
-  function compareTwoTexts(txt1, txt2, similarityThreshold=0.75) {
-    txt1 = txt1.trim().toLowerCase();
-    txt2 = txt2.trim().toLowerCase();
-
-    if (txt1 === txt2) return true;
-
-    let shorter = txt1;
-    let longer = txt2;
-
-    if (shorter.length > longer.length) {
-      shorter = txt2;
-      longer = txt1;
-    }
-
-    if (longer.includes(shorter)) return true;
-
-    return levenshteinDistanceSimilarity(txt1, txt2) >= similarityThreshold;
-  }
-
-  function levenshteinDistanceSimilarity(a, b) {
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
-    }
-    for (let j = 1; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        const indicator = a[j - 1] === b[i - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1, // deletion
-          matrix[i][j - 1] + 1, // insertion
-          matrix[i - 1][j - 1] + indicator // substitution
-        );
-      }
-    }
-
-    let similarity = 1 - (matrix[b.length][a.length] / Math.max(a.length, b.length));
-    return similarity;
+  function getBodyText() {
+    return document.body.innerText;
   }
 
   // Get document.body.innerText of selected tab
