@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Gemini Nano Demo",
+  "name": "Ask Tabby - Contextualised Tab Searches",
   "version": "1.0",
-  "description": "Contextualised Tab Searches!",
+  "description": "Too many tabs? Have a question that you remember you saw the answer in one of your tabs? Don't want to open too many tabs? Use this extension to search for answers in your tabs!",
   "side_panel": {
     "default_path": "index.html"
   },
@@ -17,6 +17,12 @@
       "matches": ["<all_urls>"],
       "js": ["index.js"]
     }
-  ]
+  ],
+  "icons": {
+    "16": "assets/tabby_png.png",
+    "32": "assets/tabby_png.png",
+    "48": "assets/tabby_png.png",
+    "128": "assets/tabby_png.png"
+  }
 
 }
