@@ -5,15 +5,14 @@
   const titleModelParams = {
     temperature: 1,
     topK: 3,
-    systemPrompt: `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say <TABBY NOT FOUND>. Only say the title, without reasoning.`
-  }
+    systemPrompt: `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say <TABBY NOT FOUND>. Only say the title, without reasoning.`,
+  };
 
   const questionModelParams = {
     temperature: 0.5,
     topK: 1,
-    systemPrompt: `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`
-  }
-  
+    systemPrompt: `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`,
+  };
 
   const form = document.querySelector("form");
   const chatDiv = document.getElementById("chat-div");
@@ -22,12 +21,14 @@
   const menuButton = document.getElementById("menu-button");
   const menuDiv = document.getElementById("menu-div");
   const topBar = document.getElementById("top-bar");
-  const triggerWordSettingCheckbox = document.getElementById("trigger-word-setting");
+  const triggerWordSettingCheckbox = document.getElementById(
+    "trigger-word-setting"
+  );
 
   const OUTGOING_MESSAGE_CLASS = "outgoing";
   const INCOMING_MESSAGE_CLASS = "incoming";
 
-  const TRIGGER_WORD_SETTING_SYNC_VARIABLE = "triggerWordSetting"
+  const TRIGGER_WORD_SETTING_SYNC_VARIABLE = "triggerWordSetting";
   restoreTriggerWordCheckboxSetting(TRIGGER_WORD_SETTING_SYNC_VARIABLE);
 
   function getTriggerWordSetting() {
@@ -41,9 +42,8 @@
 
   // tabId: tabSummary
   // var tabInfos = {}
-  
 
-  //   const TITLE_PROMPT = 
+  //   const TITLE_PROMPT =
   // "You will be answering a question based on the text given to you. The format will be as follows: \
   // \
   // \"Question\": [question] \
@@ -51,24 +51,24 @@
   // \
   // You are not limited to solely finding an answer in the text, but prioritise finding the answer in the context of the text. \
   // You may include your own information if the text is not relevant or you need more information";
-    //   const TITLE_PROMPT =
+  //   const TITLE_PROMPT =
   // `"I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the text does not provide enough information to answer the question, say the following words exactly: 'The websites you have opened are not relevant, so here is a Google Search link for your question.' Do not include a Google Search link.`
   //say the following words exactly "${IRRELEVANT_ANSWER}". If it is not related, explain why` // Generate a percentage of how confident you are of your answer, and say "IRRELEVANT" if that percentage is lower than 60%.`// If the percentage is less than 60%, say the following WITHOUT providing a google search link: '${IRRELEVANT_ANSWER}'`;//. `
-
 
   const IRRELEVANT_ANSWER = `Your open websites are all not related, click here to search for it.`;
 
   // const SYSTEM_PROMPT_FIND_RELEVANT_TAB = `I will give you a question, followed by a list of website titles. From the following list of website titles, choose the one that has the highest chance of answering the question. If none of them look promising, say "false"`;
-  
 
   // DO NOT USE THE WORD IRRELEVANT. use related
   // IMPORTANT: Filtering a related passage will be done with the summaries. If it is chosen, means confirm related. If none are related, we will provide the google search link then.
   // This prompt api will be confident it is related, so if it cannot answer the question it will be due to missing info in the text, not because it is the wrong website.
-  
 
   function generateIrrelevantAnswerWithGoogleSearchLink(prompt) {
-    let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(" ", "+")}`
-    return `<a href="${searchLink}" target="_blank">${IRRELEVANT_ANSWER}</a>`
+    let searchLink = `https://www.google.com/search?q=${prompt.replaceAll(
+      " ",
+      "+"
+    )}`;
+    return `<a href="${searchLink}" target="_blank">${IRRELEVANT_ANSWER}</a>`;
   }
 
   function generateTitlePrompt(question, tabTitles) {
@@ -88,6 +88,9 @@
 
   var menuIsOpen = false;
 
+  let startingMessageDiv = await createIncomingMessage();
+  updateIncomingMessage(startingMessageDiv, "Hey there this is Tabby, ask me any question you would like to be answered by your tabs.", false, "");
+
   // Update here when using a new API
   //if (!self.ai || !self.ai.languageModel || !self.ai.summarizer) {
   if (!self.ai || !self.ai.languageModel) {
@@ -100,14 +103,14 @@
   // Expected output from prompt API: confidence percent followed by answer
   // If confidence below threshold, show irrelevant answer text, else show answer
   function textRelevanceCheck(response, confidenceThreshold) {
-    percentLoc = response.search("%")
+    percentLoc = response.search("%");
     if (percentLoc != -1) {
-      return 0, IRRELEVANT_ANSWER
+      return 0, IRRELEVANT_ANSWER;
     } else {
       let confidence = response.slice(0, percentLoc).trim();
       let answer = response.slice(percentLoc + 1).trim();
       if (isNumeric(confidence) && confidence >= confidenceThreshold) {
-        answer = IRRELEVANT_ANSWER
+        answer = IRRELEVANT_ANSWER;
       }
 
       return confidence, answer;
@@ -115,11 +118,13 @@
   }
 
   function isNumeric(str) {
-    if (typeof str != "string") return false // we only process strings!  
-    return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-           !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+    if (typeof str != "string") return false; // we only process strings!
+    return (
+      !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+      !isNaN(parseFloat(str))
+    ); // ...and ensure strings of whitespace fail
   }
-  
+
   // Let model decide which website is relevant
   // (Prompt 1)
   const promptTitleModel = async (promptInputValue) => {
@@ -128,20 +133,20 @@
     var tabTitles = Object.values(tabInfos);
 
     if (!promptInputValue) return;
-    
+
     await createOutgoingMessage(promptInputValue);
     const incomingDiv = await createIncomingMessage();
-    
+
     if (!titleModel) {
       await createTitleModel();
     }
 
     promptInput.value = "";
-    
+
     let titlePrompt = generateTitlePrompt(promptInputValue, tabTitles);
     console.log(titlePrompt);
     const selectedTabTitle = await titleModel.prompt(titlePrompt);
-    console.log("title response: " + selectedTabTitle)
+    console.log("title response: " + selectedTabTitle);
 
     // TODO: when comparing, check if the shorter text is found in the longer text
     if (tabTitles.includes(selectedTabTitle)) {
@@ -152,43 +157,51 @@
       return promptQuestionModel(promptInputValue, websiteContent, incomingDiv);
     } else {
       // If non of the websites are relevant, show irrelevant message
-      return updateIncomingMessageIrrelevantAnswer(incomingDiv, promptInputValue);
+      return updateIncomingMessageIrrelevantAnswer(
+        incomingDiv,
+        promptInputValue
+      );
     }
+  };
 
-  }
-
-  const promptQuestionModel = async (promptInputValue, websiteContent, incomingDiv) => {
+  const promptQuestionModel = async (
+    promptInputValue,
+    websiteContent,
+    incomingDiv
+  ) => {
     const prompt = generateQuestionPrompt(promptInputValue, websiteContent);
-// `"Question": what temperature should the cookies be baked at?
+    // `"Question": what temperature should the cookies be baked at?
 
-// "Website Titles":
-// Whatsapp Web
-// New Tab
-// Cookie Clicker`
+    // "Website Titles":
+    // Whatsapp Web
+    // New Tab
+    // Cookie Clicker`
 
     if (!prompt) return;
 
     let fullResponse = "";
 
-    
-    
     try {
       if (!questionModel) {
         await createQuestionModel();
       }
       // const titleStream = await titleModel.promptStreaming(prompt); // change from stream to prompt
 
-
-
-
-      const questionStream = await questionModel.promptStreaming(generateQuestionPrompt);
+      const questionStream = await questionModel.promptStreaming(
+        generateQuestionPrompt
+      );
       var speechPtr = 0;
-      
+
       for await (const chunk of questionStream) {
         fullResponse = chunk.trim();
-        updateIncomingMessage(incomingDiv, fullResponse, false, promptInputValue);
+        updateIncomingMessage(
+          incomingDiv,
+          fullResponse,
+          false,
+          promptInputValue
+        );
 
-        chrome.tts.speak(fullResponse.slice(speechPtr), {'enqueue': true});
+        chrome.tts.speak(fullResponse.slice(speechPtr), { enqueue: true });
 
         speechPtr = fullResponse.length;
       }
@@ -199,11 +212,10 @@
       updateIncomingMessage(incomingDiv, err_msg, true, promptInputValue);
       chrome.tts.speak(err_msg);
     } finally {
-
     }
   };
 
-  // Two ways to send prompt: 
+  // Two ways to send prompt:
   // (Option 1) User keys in and presses submit form.addEventListener("submit")
   // (Option 2) searchWithPromptGiven();
   form.addEventListener("submit", async (e) => {
@@ -229,16 +241,16 @@
     }
   });
 
-  triggerWordSettingCheckbox.addEventListener('change', (event) => {
+  triggerWordSettingCheckbox.addEventListener("change", (event) => {
     if (event.currentTarget.checked) {
-      updateSettings({TRIGGER_WORD_SETTING_SYNC_VARIABLE: true});
+      updateSettings({ TRIGGER_WORD_SETTING_SYNC_VARIABLE: true });
       startListeningForTriggerWord();
     } else {
       enableMicButtonCSS();
-      updateSettings({TRIGGER_WORD_SETTING_SYNC_VARIABLE: false});
+      updateSettings({ TRIGGER_WORD_SETTING_SYNC_VARIABLE: false });
       stopListening(triggerWordRecognition);
     }
-  })
+  });
 
   const resetUI = () => {
     // responseArea.style.display = "none";s
@@ -274,7 +286,6 @@
       menuDiv.style.display = "inline-block";
       menuIsOpen = true;
     }
-
   });
 
   // Main Code
@@ -286,21 +297,24 @@
     sttButton.addEventListener("click", async () => {
       if (!isListening) {
         // TODO prompt user for microphone access if not given. not sure why cannot.
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then((stream) => {
-                // Microphone permission granted, proceed with recognition
-                startListening();
-            })
-            .catch((error) => {
-                alert("Please enable microphone access in your browser settings to use this feature.");
-                // Permission denied, inform the user
-                console.error("Microphone access denied:", error);
-            });
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then((stream) => {
+            // Microphone permission granted, proceed with recognition
+            startListening();
+          })
+          .catch((error) => {
+            alert(
+              "Please enable microphone access in your browser settings to use this feature."
+            );
+            // Permission denied, inform the user
+            console.error("Microphone access denied:", error);
+          });
       } else {
-          // End STT
-          // Stop the speech recognition
-          stopListening(recognition);
-          console.log("recongtion.stop");
+        // End STT
+        // Stop the speech recognition
+        stopListening(recognition);
+        console.log("recongtion.stop");
       }
     });
   }
@@ -310,16 +324,15 @@
     titleModel = await self.ai.languageModel.create({
       temperature: Number(titleModelParams.temperature),
       topK: Number(titleModelParams.topK),
-      systemPrompt: titleModelParams.systemPrompt
+      systemPrompt: titleModelParams.systemPrompt,
     });
-  }
-    
+  };
 
   const createQuestionModel = async () => {
     questionModel = await self.ai.languageModel.create({
       temperature: Number(questionModelParams.temperature),
       topK: Number(questionModelParams.topK),
-      systemPrompt: questionModelParams.systemPrompt
+      systemPrompt: questionModelParams.systemPrompt,
     });
   };
 
@@ -337,8 +350,6 @@
   var recognition;
   var triggerWordRecognition;
 
-
-
   function startListeningForTriggerWord() {
     disableMicButtonCSS();
     promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
@@ -347,10 +358,11 @@
     let triggerWordSpoken = false;
 
     if (!triggerWordRecognition) {
-      triggerWordRecognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      triggerWordRecognition = new (window.SpeechRecognition ||
+        window.webkitSpeechRecognition)();
       triggerWordRecognition.continuous = true;
       triggerWordRecognition.interimResults = false;
-      triggerWordRecognition.lang = 'en-US';  // Set the language (optional)
+      triggerWordRecognition.lang = "en-US"; // Set the language (optional)
 
       // Stop if already listening
       if (isListening) {
@@ -358,23 +370,24 @@
       }
 
       triggerWordRecognition.onresult = (e) => {
-          const error = e.results === undefined || (typeof e.results) === "undefined";
-          if (error) {
-              triggerWordRecognition.onend = null;
-              triggerWordRecognition.stop();
-              console.log(error.code)
-              console.error(error);
-              return;
-          }
+        const error =
+          e.results === undefined || typeof e.results === "undefined";
+        if (error) {
+          triggerWordRecognition.onend = null;
+          triggerWordRecognition.stop();
+          console.log(error.code);
+          console.error(error);
+          return;
+        }
 
-          let final = e.results[e.results.length-1][0].transcript; // Get last recorded sentence
-          console.log(final);
-          triggerWordSpoken = final.toLowerCase().includes(TRIGGER_WORD)
+        let final = e.results[e.results.length - 1][0].transcript; // Get last recorded sentence
+        console.log(final);
+        triggerWordSpoken = final.toLowerCase().includes(TRIGGER_WORD);
 
-          if (triggerWordSpoken) {
-            stopListening(triggerWordRecognition);
-            startListening();
-          }
+        if (triggerWordSpoken) {
+          stopListening(triggerWordRecognition);
+          startListening();
+        }
       };
 
       triggerWordRecognition.onerror = (event) => {
@@ -385,81 +398,80 @@
       };
 
       triggerWordRecognition.onend = () => {
-          // Automatically restart if listening mode is still active
-          if (isListening && !triggerWordSpoken) {
-            triggerWordRecognition.start();
-          }
+        // Automatically restart if listening mode is still active
+        if (isListening && !triggerWordSpoken) {
+          triggerWordRecognition.start();
+        }
       };
     }
-    
+
     triggerWordRecognition.start();
     isListening = true;
   }
 
   function startListening() {
-      if (!getTriggerWordSetting()) {
-        slashMicButton(true);
+    if (!getTriggerWordSetting()) {
+      slashMicButton(true);
+    }
+    promptInput.placeholder = "Listening...";
+    promptInput.value = "";
+
+    // responseArea.innerHTML = "Listening...";
+
+    if (!recognition) {
+      recognition = new (window.SpeechRecognition ||
+        window.webkitSpeechRecognition)();
+      recognition.continuous = true;
+      recognition.interimResults = true; // Allows you to get partial results
+      recognition.lang = "en-US"; // Set the language (optional)
+
+      // Stop if already listening
+      if (isListening) {
+        stopListening(recognition);
       }
-      promptInput.placeholder = "Listening...";
-      promptInput.value = "";
 
-      // responseArea.innerHTML = "Listening...";
+      recognition.onresult = (e) => {
+        let interim = "";
+        let final = "";
 
-      if (!recognition) {
-        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.continuous = true;
-        recognition.interimResults = true;  // Allows you to get partial results
-        recognition.lang = 'en-US';  // Set the language (optional)
-
-        // Stop if already listening
-        if (isListening) {
-            stopListening(recognition);
+        const error =
+          e.results === undefined || typeof e.results === "undefined";
+        if (error) {
+          recognition.onend = null;
+          // recognition.stop();
+          stopListening(recognition);
+          console.log(error.code);
+          console.error(error);
+          return;
         }
 
-        recognition.onresult = (e) => {
-            let interim = "";
-            let final = "";
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            final += e.results[i][0].transcript;
+          } else {
+            interim += e.results[i][0].transcript;
+          }
+        }
 
-            const error = e.results === undefined || (typeof e.results) === "undefined";
-            if (error) {
-                recognition.onend = null;
-                // recognition.stop();
-                stopListening(recognition);
-                console.log(error.code)
-                console.error(error);
-                return;
-            }
+        if (interim) {
+          promptInput.value = interim;
+          promptInput.scrollLeft = promptInput.scrollWidth;
+        } else if (final) {
+          promptInput.value = final;
+          promptInput.scrollLeft = promptInput.scrollWidth;
+          searchWithPromptGiven();
+        }
+      };
 
-            for (let i = e.resultIndex; i < e.results.length; ++i) {
-                if (e.results[i].isFinal) {
-                    final += e.results[i][0].transcript;
-                } else {
-                    interim += e.results[i][0].transcript;
-                }
-            }
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+      };
 
+      recognition.onend = () => {};
+    }
 
-            if (interim) {
-                promptInput.value = interim;
-                promptInput.scrollLeft = promptInput.scrollWidth;
-            } else if (final) {
-                promptInput.value = final;
-                promptInput.scrollLeft = promptInput.scrollWidth;
-                searchWithPromptGiven()
-            }
-        };
-
-        recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
-        };
-
-        recognition.onend = () => {
-          
-        };
-      }
-
-      recognition.start();
-      isListening = true;
+    recognition.start();
+    isListening = true;
   }
 
   function stopListening(recognition) {
@@ -473,12 +485,12 @@
       promptInput.placeholder = TRIGGER_WORD_PLACEHOLDER;
     } else {
       // else toggle mic button
-      slashMicButton(false)
+      slashMicButton(false);
       promptInput.placeholder = PROMPT_INPUT_PLACEHOLDER;
     }
   }
 
-  // Two ways to send prompt: 
+  // Two ways to send prompt:
   // (Option 1) User keys in and presses submit form.addEventListener("submit")
   // (Option 2) searchWithPromptGiven();
   async function searchWithPromptGiven() {
@@ -487,11 +499,11 @@
 
     // If trigger word setting, start listening again
     if (getTriggerWordSetting()) {
-      startListeningForTriggerWord()
+      startListeningForTriggerWord();
     }
   }
 
-  // Creates a message div with "..." while waiting for model response. 
+  // Creates a message div with "..." while waiting for model response.
   // Once model response is out, will replace the "..." with the response using "updateIncomingMessage"
   async function createIncomingMessage() {
     // Make div for the message
@@ -501,35 +513,49 @@
     const bubbleDiv = document.createElement("div");
     bubbleDiv.classList.add("bubble");
     // Make the "..." div, add it for the message
-    ["one", "two", "three"].forEach(num => {
+    ["one", "two", "three"].forEach((num) => {
       let e = document.createElement("div");
       e.classList.add("ellipsis", num);
       bubbleDiv.appendChild(e);
-    })
+    });
     messageDiv.appendChild(bubbleDiv);
-    
+
     // Show message
     chatDiv.append(messageDiv);
     chatDiv.scrollTop = chatDiv.scrollHeight;
 
     // Don't add TTS button first
-    return messageDiv
+    return messageDiv;
   }
 
   // Updates the incoming message from "..." to the irrelevant response
-  async function updateIncomingMessageIrrelevantAnswer(messageDiv, promptInputValue) {
-    return updateIncomingMessage(messageDiv, IRRELEVANT_ANSWER, true, promptInputValue);
+  async function updateIncomingMessageIrrelevantAnswer(
+    messageDiv,
+    promptInputValue
+  ) {
+    return updateIncomingMessage(
+      messageDiv,
+      IRRELEVANT_ANSWER,
+      true,
+      promptInputValue
+    );
   }
 
   // Updates the incoming message from "..." to the response
-  async function updateIncomingMessage(messageDiv, text, isFinal, promptInputValue) {
+  async function updateIncomingMessage(
+    messageDiv,
+    text,
+    isFinal,
+    promptInputValue
+  ) {
     let textToShow = text;
     let textToTTS = text;
     // If irrelevant, give google search link
     // TODO: If the answer is close enough to IRRELEVANT_ANSWER, also accept
     //       https://gist.github.com/andrei-m/982927
     if (text == IRRELEVANT_ANSWER) {
-      textToShow = generateIrrelevantAnswerWithGoogleSearchLink(promptInputValue);
+      textToShow =
+        generateIrrelevantAnswerWithGoogleSearchLink(promptInputValue);
     }
 
     // Remove "..." to show model is done loading
@@ -544,7 +570,7 @@
       // Add TTS button
       addTTSButton(messageDiv, textToTTS);
     }
-    
+
     chatDiv.scrollTop = chatDiv.scrollHeight;
     return messageDiv;
   }
@@ -567,19 +593,19 @@
     // Show message
     chatDiv.append(messageDiv);
     chatDiv.scrollTop = chatDiv.scrollHeight;
-    return messageDiv
+    return messageDiv;
   }
 
-  // Adds the TTS Button to a message 
+  // Adds the TTS Button to a message
   // TODO Change to update where it updates from stopTTS => startTTS chrome.tts.stop();
   async function addTTSButton(messageDiv, text) {
     const newButton = document.createElement("button");
-    newButton.classList.add("tts")
+    newButton.classList.add("tts");
     const speakerIcon = document.createElement("icon");
-    speakerIcon.classList.add("fa", "fa-volume-up")
-    newButton.appendChild(speakerIcon)
-    newButton.addEventListener("click", function(e) {
-        chrome.tts.speak(text);
+    speakerIcon.classList.add("fa", "fa-volume-up");
+    newButton.appendChild(speakerIcon);
+    newButton.addEventListener("click", function (e) {
+      chrome.tts.speak(text);
     });
     // Combine everything
     messageDiv.appendChild(newButton);
@@ -622,23 +648,18 @@
 
   // Update the settings page to local storage
   function updateSettings(settingsObject) {
-    chrome.storage.local.set(
-      settingsObject,
-      () => {
-        // alert("Settings Saved.")
-      }
-    );
+    chrome.storage.local.set(settingsObject, () => {
+      // alert("Settings Saved.")
+    });
   }
 
   // Restore the settings page from local storage
   function restoreTriggerWordCheckboxSetting(key) {
-    chrome.storage.local.get(
-      key,
-      (items) => {
-        triggerWordSettingCheckbox.checked = items[key];
-        triggerWordSettingCheckbox.dispatchEvent(new Event('change'));
-      });
-  };
+    chrome.storage.local.get(key, (items) => {
+      triggerWordSettingCheckbox.checked = items[key];
+      triggerWordSettingCheckbox.dispatchEvent(new Event("change"));
+    });
+  }
 
   // TODO auto resize textarea based on the amount of words spoken
 
@@ -680,11 +701,11 @@
   // // Counts tabs that are not New Tab and chrome://
   // // The foreach will fail so we need to ignore them also
   // function countValidTabs() {
-    
+
   // }
 
   function getTitle() {
-    console.log("YES")
+    console.log("YES");
     // try {
     //   return document.title;
     // } catch (err) {
@@ -734,7 +755,7 @@
     const tabs = await new Promise((resolve, reject) => {
       chrome.tabs.query({}, (tabs) => {
         if (chrome.runtime.lastError) {
-          reject(new Error('Failed to query tabs'));
+          reject(new Error("Failed to query tabs"));
         } else {
           resolve(tabs);
         }
@@ -752,9 +773,6 @@
     return tabInfos;
   }
 
-
-
-
   // // Testing only can delete later
   // tabInfos = await loadTabTitles();
   // console.log(tabInfos)
@@ -762,7 +780,6 @@
   // Summarise tab content
   function summariseTabContent(tabContent) {
     tabContent = preprocessTabContent(tabContent);
-
   }
 
   // TODO preprocess the tab summaries
@@ -776,28 +793,28 @@
   }
 
   function getBodyText() {
-    return document.body.innerText
+    return document.body.innerText;
   }
 
   function getRelevantTabContent(selectedTabTitle, tabInfos) {
-    // For each key, 
+    // For each key,
     // selectedTabID = Object.keys(tabInfos).find(key => tabInfos[key] === selectedTabTitle);
     let selectedTabID = -1;
     for (let key in tabInfos) {
       if (tabInfos[key] === selectedTabTitle) {
         selectedTabID = key;
-        break;  // Stop once the key is found
+        break; // Stop once the key is found
       }
     }
 
     if (selectedTabID == -1) {
       // TODO handle it
-      alert("NOT FOUND.")
+      alert("NOT FOUND.");
     } else {
-      return chrome.scripting.executeScript({target: {tabId:Number(selectedTabID)}, function:getBodyText});
+      return chrome.scripting.executeScript({
+        target: { tabId: Number(selectedTabID) },
+        function: getBodyText,
+      });
     }
-
   }
-
 })();
-
