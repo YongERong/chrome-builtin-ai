@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Nano Demo",
+  "version": "1.0",
+  "description": "Contextualised Tab Searches!",
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "permissions": ["sidePanel", "storage", "tabs", "tts", "scripting", "activeTab"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["index.js"]
+    }
+  ]
+
+}

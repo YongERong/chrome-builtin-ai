@@ -1,0 +1,13 @@
+
+Dont have to search so much because its alr in one of your text
+More relevant to your open tabs rather than ambigious
+
+Features
+Click to speak (TTS)
+Setting to listen for trigger word (Say "Hey Tabby" followed by what you want to say)
+If not found, generates a google search link the user can click to search
+
+Applications
+Baking
+Coding
+Studying

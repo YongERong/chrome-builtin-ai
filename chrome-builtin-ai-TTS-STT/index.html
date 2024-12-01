@@ -1,0 +1,55 @@
+<!--It's just a concept, a chat UI design for direct messaging!
+Enjoy! :) Don't forget to click the heart if you like it! -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+    <script src="index.js" type="module"></script>
+    <!-- <script src="index.js" type="module"></script> -->
+  </head>
+  <body>
+    <div class="chatbox">
+      <div id="top-bar" class="top-bar">
+        <div class="name">Ask Tabby</div>
+        <div class="icons">
+          <i id="reset-button" class="fa fa-refresh" aria-hidden="true"></i>
+          <i id="menu-button" class="fa fa-bars"></i>
+        </div>
+        <div id="menu-div">
+          <div class="menu-item text-center">Settings</div>
+          <!-- Trigger Word Setting -->
+          <div class="menu-item">
+            <div class="menu-item-label"><label for="trigger-word-setting">Always listen until trigger word: "Hey Tabby"</label></div>
+            <div class="menu-item-input"><input id="trigger-word-setting" type="checkbox"></div>
+          </div>
+          <!-- Top K
+          <div class="menu-item">
+            <div class="menu-item-label"><label for="session-top-k">Top-k</label></div>
+            <div class="menu-item-input"><input id="session-top-k" min="1" type="number"></div>
+          </div> -->
+           <!-- Temperature
+           <div class="menu-item">
+            <div class="menu-item-label"><label for="session-temperature">Temperature</label></div>
+            <div class="menu-item-input"><input id="session-temperature" type="number" step="any" min="0"></div>
+          </div> -->
+        </div>
+      </div>
+      <div class="middle">
+        <div id="chat-div" class="chat-div">
+          <div id="response-area"></div> <!-- TODO FOR TESTING ONLY!!! CHANGE TO INCOMING NEXT TIME-->
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <form class="chat">
+          <input type="text" id="prompt-input" placeholder="What do you want to know?">
+          <button type="button" id="stt-button" class="chat-button"><i class="fa fa-microphone" id="stt-button-icon" aria-hidden="true"></i></button>
+          <button type="submit" id="submit-button"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+        </form>
+      </div>
+    </div>
+</body>
+</html>
