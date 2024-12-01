@@ -89,7 +89,8 @@
   var menuIsOpen = false;
 
   // Update here when using a new API
-  if (!self.ai || !self.ai.languageModel || !self.ai.summarizer) {
+  //if (!self.ai || !self.ai.languageModel || !self.ai.summarizer) {
+  if (!self.ai || !self.ai.languageModel) {
     let errorMessage = `Your browser doesn't support the Prompt API. If you're on Chrome, join the <a href="https://developer.chrome.com/docs/ai/built-in#get_an_early_preview">Early Preview Program</a> to enable it.`;
     let incomingDiv = await createIncomingMessage();
     updateIncomingMessage(incomingDiv, errorMessage, false, "");
@@ -146,7 +147,7 @@
     if (tabTitles.includes(selectedTabTitle)) {
       // If one of the website is relevant, get the websiteContent from innerText
       let websiteContent = getRelevantTabContent(selectedTabTitle, tabInfos);
-      alert(selectedTabTitle);
+      //alert(selectedTabTitle);
       // Prompt question model with prompt and website content
       return promptQuestionModel(promptInputValue, websiteContent, incomingDiv);
     } else {
@@ -183,7 +184,7 @@
       const questionStream = await questionModel.promptStreaming(generateQuestionPrompt);
       var speechPtr = 0;
       
-      for await (const chunk of titleStream) {
+      for await (const chunk of questionStream) {
         fullResponse = chunk.trim();
         updateIncomingMessage(incomingDiv, fullResponse, false, promptInputValue);
 
@@ -774,6 +775,10 @@
     "Text": ${websiteContent}"`;
   }
 
+  function getBodyText() {
+    return document.body.innerText
+  }
+
   function getRelevantTabContent(selectedTabTitle, tabInfos) {
     // For each key, 
     // selectedTabID = Object.keys(tabInfos).find(key => tabInfos[key] === selectedTabTitle);
@@ -789,9 +794,7 @@
       // TODO handle it
       alert("NOT FOUND.")
     } else {
-      return chrome.scripting.executeScript(selectedTabID, {code: 'document.body.innerText'}, function(result) {
-        return result;
-      })
+      return chrome.scripting.executeScript({target: {tabId:Number(selectedTabID)}, function:getBodyText});
     }
 
   }
