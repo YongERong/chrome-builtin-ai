@@ -1,3 +1,5 @@
+![Tabby](https://github.com/YongERong/chrome-builtin-ai/blob/main/tabby.png?raw=True)
+
 Ever find yourself drowning in a sea of tabs, trying to find an answer that you swore you saw just 5 minutes ago?
 
 Tabby is here for you! It helps you to find the answers you need in the context of your tabs. Almost like RAG for tabs, you could say. And this all happens locally, from the safety of your device.
