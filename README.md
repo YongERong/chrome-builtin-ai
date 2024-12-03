@@ -7,6 +7,8 @@ Tabby is here for you! It helps you to find the answers you need in the context 
 ## How we built it
 Tabby utilises the Tabs, Scripting and Prompt APIs for Chrome Extensions, to extract and make sense of your tabs. TTS and STT APIs to speak/listen to the user.
 
+![Tabby_flow](https://github.com/YongERong/chrome-builtin-ai/blob/main/Tabby_flow.png?raw=True)
+
 ## Getting started with Tabby
 1. Install Google Chrome Dev or Google Chrome Canary
 2. Follow the steps at this document to enable Prompt API
