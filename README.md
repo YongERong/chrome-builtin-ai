@@ -19,12 +19,15 @@ Tabby utilises the Tabs, Scripting and Prompt APIs for Chrome Extensions, to ext
 
 ## Troubleshooting
 *Tabby keeps saying I don't have prompt API installed!*
+
 Refer to the [Prompt API doumentation](https://docs.google.com/document/d/1VG8HIyz361zGduWgNG7R_R8Xkv0OOJ8b5C9QKeCjU0c/edit?usp=drivesdk) to check that you have everything installed properly
 
 *Tabby keeps asking for microphone permissions*
+
 Enable microphone access under chrome://extensions -> gemini-nano-demo -> site settings. You can choose not to allow microphone permissions if you do not wish to use the speech-to-text feature.
 
 *Tabby is having some other issues*
+
 Open an issue, we'll take a look!
 
 
