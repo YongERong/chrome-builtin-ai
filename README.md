@@ -26,6 +26,10 @@ Refer to the [Prompt API doumentation](https://docs.google.com/document/d/1VG8HI
 
 Enable microphone access under chrome://extensions -> gemini-nano-demo -> site settings. You can choose not to allow microphone permissions if you do not wish to use the speech-to-text feature.
 
+*Tabby runs into "NotSupportedError: The model attempted to output text in an untested language, and was prevented from doing so."*
+
+Disable chrome://flags/#text-safety-classifier
+
 *Tabby is having some other issues*
 
 Open an issue, we'll take a look!
@@ -34,6 +38,8 @@ Open an issue, we'll take a look!
 ## Challenges we ran into
 - Output from the built-in model tends to be non-deterministic, which affects the consistency of the tool
 - Token limit for the model is not as large as externally hosted models, cannot simply dump the entire tab text as context
+- Language unsupported error despite working with english text
+- Slow model load times (depending on hardware)
 
 
 
