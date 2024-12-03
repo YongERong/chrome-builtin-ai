@@ -10,7 +10,7 @@
 
   const questionModelParams = {
     temperature: 0.5,
-    topK: 1,
+    topK: 3,
     systemPrompt: `I will give you a question, followed by a text. If the question can be answered based on the text provided, give a relevant and concise answer. If the question is not related to the text, explain why.`,
   };
 
